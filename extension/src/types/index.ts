@@ -49,6 +49,7 @@ export interface Step {
   pageTitle: string;
   targetElement?: TargetElementMeta;
   screenshot: string; // Base64 data URI of the captured tab
+  originalScreenshot?: string; // Backup of uncropped original screenshot
   annotatedScreenshot?: string; // Processed screenshot with spotlight / blur / box
   highlight?: HighlightConfig;
   blurRegions?: BlurRegion[];

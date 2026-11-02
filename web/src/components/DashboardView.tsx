@@ -195,3 +195,4 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
     </div>
   );
 };
+

@@ -49,6 +49,7 @@ export interface Step {
   pageTitle: string;
   targetElement?: TargetElementMeta;
   screenshot: string; // Base64 data URL or remote public URL
+  originalScreenshot?: string;
   annotatedScreenshot?: string;
   highlight?: HighlightConfig;
   blurRegions?: BlurRegion[];

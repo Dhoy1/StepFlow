@@ -140,20 +140,33 @@ function setupEventListeners() {
       const targetMeta = extractElementMeta(target);
       const instruction = generateStepInstruction('click', target, targetMeta);
 
-      // Give a tiny 60ms delay so any instant visual state change (like a dropdown opening) is captured in screenshot
+      // Sembunyikan dock sebelum screenshot diambil agar tidak masuk ke gambar tutorial
+      if (dockHost) {
+        dockHost.style.visibility = 'hidden';
+      }
+
+      // Beri jeda 80ms agar browser melakukan repaint tanpa dock
       setTimeout(() => {
-        chrome.runtime.sendMessage({
-          type: 'CAPTURE_STEP',
-          payload: {
-            actionType: 'click',
-            title: instruction.title,
-            description: instruction.description,
-            targetElement: targetMeta,
-            url: window.location.href,
-            pageTitle: document.title
+        chrome.runtime.sendMessage(
+          {
+            type: 'CAPTURE_STEP',
+            payload: {
+              actionType: 'click',
+              title: instruction.title,
+              description: instruction.description,
+              targetElement: targetMeta,
+              url: window.location.href,
+              pageTitle: document.title
+            }
+          },
+          () => {
+            // Tampilkan kembali dock setelah screenshot selesai diambil
+            if (dockHost) {
+              dockHost.style.visibility = 'visible';
+            }
           }
-        });
-      }, 80);
+        );
+      }, 90);
     },
     true // Capture phase
   );
@@ -173,19 +186,30 @@ function setupEventListeners() {
       const targetMeta = extractElementMeta(target);
       const instruction = generateStepInstruction('change', target, targetMeta);
 
+      if (dockHost) {
+        dockHost.style.visibility = 'hidden';
+      }
+
       setTimeout(() => {
-        chrome.runtime.sendMessage({
-          type: 'CAPTURE_STEP',
-          payload: {
-            actionType: 'change',
-            title: instruction.title,
-            description: instruction.description,
-            targetElement: targetMeta,
-            url: window.location.href,
-            pageTitle: document.title
+        chrome.runtime.sendMessage(
+          {
+            type: 'CAPTURE_STEP',
+            payload: {
+              actionType: 'change',
+              title: instruction.title,
+              description: instruction.description,
+              targetElement: targetMeta,
+              url: window.location.href,
+              pageTitle: document.title
+            }
+          },
+          () => {
+            if (dockHost) {
+              dockHost.style.visibility = 'visible';
+            }
           }
-        });
-      }, 80);
+        );
+      }, 90);
     },
     true
   );
