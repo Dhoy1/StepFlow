@@ -5,6 +5,39 @@ let currentWorkflow: Workflow | null = null;
 let recordingStatus: RecordingStatus = 'idle';
 let activeRecordingTabId: number | null = null;
 
+// Restore state from chrome.storage if service worker was suspended
+async function ensureStateRestored() {
+  if (recordingStatus === 'idle' && !currentWorkflow) {
+    try {
+      const stored = await chrome.storage.local.get(['recordingStatus', 'activeWorkflowId', 'activeRecordingTabId']);
+      if (stored.recordingStatus && stored.recordingStatus !== 'idle' && stored.activeWorkflowId) {
+        recordingStatus = stored.recordingStatus;
+        activeRecordingTabId = stored.activeRecordingTabId || null;
+        currentWorkflow = (await db.workflows.get(stored.activeWorkflowId)) || null;
+      }
+    } catch (e) {
+      console.warn('Failed to restore SW state:', e);
+    }
+  }
+}
+
+// Persist state to storage
+async function persistState() {
+  try {
+    if (recordingStatus === 'idle' || !currentWorkflow) {
+      await chrome.storage.local.remove(['recordingStatus', 'activeWorkflowId', 'activeRecordingTabId']);
+    } else {
+      await chrome.storage.local.set({
+        recordingStatus,
+        activeWorkflowId: currentWorkflow.id,
+        activeRecordingTabId
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to persist SW state:', e);
+  }
+}
+
 // Helper to broadcast state to all tabs or active tab
 async function broadcastStatus() {
   const tabs = await chrome.tabs.query({});
@@ -32,6 +65,8 @@ function generateId(): string {
 // Listen to messages from Popup or Content Script
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse) => {
   const handleMessage = async () => {
+    await ensureStateRestored();
+
     switch (message.type) {
       case 'GET_STATUS': {
         return {
@@ -45,6 +80,19 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!activeTab || !activeTab.id) {
           throw new Error('Tidak ada tab aktif yang dapat direkam.');
+        }
+
+        const tabUrl = activeTab.url || '';
+        if (
+          tabUrl.startsWith('chrome://') ||
+          tabUrl.startsWith('edge://') ||
+          tabUrl.startsWith('chrome-extension://') ||
+          tabUrl.startsWith('about:') ||
+          tabUrl.startsWith('view-source:')
+        ) {
+          throw new Error(
+            'Ekstensi tidak dapat merekam halaman internal browser (chrome:// atau edge://).\nSilakan buka tab website biasa (misal: localhost:3000, google.com, atau sistem kerja Anda).'
+          );
         }
 
         activeRecordingTabId = activeTab.id;
@@ -66,12 +114,35 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
             category: message.payload?.category || 'General',
             createdAt: Date.now(),
             updatedAt: Date.now(),
-            targetUrl: activeTab.url || '',
+            targetUrl: tabUrl,
             steps: []
           };
         }
 
-        // Notify content script in the active tab to start listening & show dock
+        // Save immediately to DB & persist state
+        await saveWorkflow(currentWorkflow);
+        await persistState();
+
+        // Check if content script is active in tab; if not, inject dynamically!
+        try {
+          const res = await chrome.tabs.sendMessage(activeRecordingTabId, { type: 'PING' });
+          if (!res?.pong) throw new Error('No pong');
+        } catch {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: activeRecordingTabId },
+              files: ['content.js']
+            });
+            await chrome.scripting.insertCSS({
+              target: { tabId: activeRecordingTabId },
+              files: ['content.css']
+            }).catch(() => {});
+          } catch (injectErr) {
+            console.warn('Could not inject content script:', injectErr);
+          }
+        }
+
+        // Notify content script in the active tab to show dock
         await chrome.tabs.sendMessage(activeRecordingTabId, {
           type: 'RECORDING_STATUS_CHANGED',
           payload: {
@@ -79,9 +150,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
             stepCount: currentWorkflow.steps.length,
             workflowTitle: currentWorkflow.title
           }
-        }).catch(() => {
-          // Tab might need reload or script injection
-        });
+        }).catch(() => {});
 
         await broadcastStatus();
         return { status: recordingStatus, workflowId: currentWorkflow.id };
@@ -89,12 +158,14 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
       case 'PAUSE_RECORDING': {
         recordingStatus = 'paused';
+        await persistState();
         await broadcastStatus();
         return { status: recordingStatus };
       }
 
       case 'RESUME_RECORDING': {
         recordingStatus = 'recording';
+        await persistState();
         await broadcastStatus();
         return { status: recordingStatus };
       }
@@ -105,7 +176,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         }
 
         try {
-          // 1. Capture visible tab
+          // Capture visible tab
           const screenshotDataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
           
           const meta = message.payload;
@@ -135,6 +206,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
           // Save progress in IndexedDB
           await saveWorkflow(currentWorkflow);
+          await persistState();
 
           // Notify dock of step count change
           await broadcastStatus();
@@ -152,6 +224,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         const finishedWorkflow = { ...currentWorkflow };
         recordingStatus = 'idle';
         currentWorkflow = null;
+        await persistState();
 
         await broadcastStatus();
 
@@ -171,6 +244,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         }
         currentWorkflow = null;
         recordingStatus = 'idle';
+        await persistState();
         await broadcastStatus();
         return { success: true };
       }

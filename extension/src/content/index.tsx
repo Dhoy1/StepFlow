@@ -145,6 +145,13 @@ function setupEventListeners() {
         dockHost.style.visibility = 'hidden';
       }
 
+      // Safety fallback: pastikan dock selalu muncul kembali setelah maksimal 400ms
+      const safetyTimer = setTimeout(() => {
+        if (dockHost && dockHost.style.visibility === 'hidden') {
+          dockHost.style.visibility = 'visible';
+        }
+      }, 400);
+
       // Beri jeda 80ms agar browser melakukan repaint tanpa dock
       setTimeout(() => {
         chrome.runtime.sendMessage(
@@ -160,7 +167,7 @@ function setupEventListeners() {
             }
           },
           () => {
-            // Tampilkan kembali dock setelah screenshot selesai diambil
+            clearTimeout(safetyTimer);
             if (dockHost) {
               dockHost.style.visibility = 'visible';
             }
@@ -190,6 +197,12 @@ function setupEventListeners() {
         dockHost.style.visibility = 'hidden';
       }
 
+      const safetyTimer = setTimeout(() => {
+        if (dockHost && dockHost.style.visibility === 'hidden') {
+          dockHost.style.visibility = 'visible';
+        }
+      }, 400);
+
       setTimeout(() => {
         chrome.runtime.sendMessage(
           {
@@ -204,6 +217,7 @@ function setupEventListeners() {
             }
           },
           () => {
+            clearTimeout(safetyTimer);
             if (dockHost) {
               dockHost.style.visibility = 'visible';
             }
@@ -216,11 +230,17 @@ function setupEventListeners() {
 }
 
 // Listen to messages from background service worker
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'PING') {
+    sendResponse({ pong: true });
+    return true;
+  }
   if (message.type === 'RECORDING_STATUS_CHANGED') {
     currentStatus = message.payload.status;
     currentStepCount = message.payload.stepCount || 0;
     updateDock();
+    sendResponse({ ok: true });
+    return true;
   }
 });
 

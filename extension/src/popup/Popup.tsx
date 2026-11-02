@@ -79,6 +79,14 @@ export const Popup: React.FC = () => {
           };
 
     chrome.runtime.sendMessage({ type: 'START_RECORDING', payload }, (res) => {
+      if (chrome.runtime.lastError) {
+        alert('Gagal memulai rekaman: ' + chrome.runtime.lastError.message);
+        return;
+      }
+      if (res && res.error) {
+        alert('Perhatian:\n' + res.error);
+        return;
+      }
       if (res && res.status) {
         setStatus(res.status);
         window.close();
@@ -88,6 +96,10 @@ export const Popup: React.FC = () => {
 
   const stopRecording = () => {
     chrome.runtime.sendMessage({ type: 'STOP_RECORDING' }, (res) => {
+      if (chrome.runtime.lastError) {
+        alert('Gagal menyelesaikan rekaman: ' + chrome.runtime.lastError.message);
+        return;
+      }
       if (res && res.workflowId) {
         setStatus('idle');
         window.close();
