@@ -6,8 +6,8 @@ import {
   RotateCcw,
   Check,
   X,
-  Palette,
-  Maximize2
+  Trash2,
+  Move
 } from 'lucide-react';
 import type { Step, BlurRegion, HighlightConfig } from '../types';
 
@@ -17,12 +17,13 @@ interface StepCanvasProps {
 }
 
 type ToolMode = 'none' | 'highlight' | 'crop' | 'blur';
+type HandleType = 'move' | 'nw' | 'ne' | 'se' | 'sw' | 'n' | 's' | 'e' | 'w';
 
 const HIGHLIGHT_COLORS = [
-  { name: 'Merah', hex: '#EF4444' },
-  { name: 'Oranye Tango', hex: '#FF5C35' },
-  { name: 'Biru', hex: '#3B82F6' },
-  { name: 'Hijau', hex: '#10B981' }
+  { name: 'Red', hex: '#EF4444' },
+  { name: 'Orange', hex: '#FF5C35' },
+  { name: 'Blue', hex: '#3B82F6' },
+  { name: 'Green', hex: '#10B981' }
 ];
 
 export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) => {
@@ -30,12 +31,16 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [activeTool, setActiveTool] = useState<ToolMode>('highlight');
-  const [selectedColor, setSelectedColor] = useState('#EF4444'); // Default Merah
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('#EF4444');
+  
+  // Dragging & Interaction State
+  const [dragMode, setDragMode] = useState<HandleType | 'new' | null>(null);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [initialBox, setInitialBox] = useState<HighlightConfig | null>(null);
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [cropSelection, setCropSelection] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  
+  const [hoverCursor, setHoverCursor] = useState<string>('default');
+
   const [imgLoaded, setImgLoaded] = useState(false);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
 
@@ -51,12 +56,27 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     };
   }, [step.id, step.screenshot]);
 
-  // Re-render when annotations change
+  // Re-render when highlight or blur changes
   useEffect(() => {
     if (imgLoaded) {
       renderCanvas();
     }
   }, [step.blurRegions, step.highlight, selectedColor, imgLoaded]);
+
+  // Handle keyboard shortcut (Delete / Backspace to delete highlight box)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && step.highlight) {
+        // Only if not focused on an input/textarea
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea') {
+          handleDeleteHighlight();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [step.highlight]);
 
   const renderCanvas = () => {
     const canvas = canvasRef.current;
@@ -73,24 +93,28 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // 2. Draw Highlight Box (Red / Orange Box with glow)
+    // 2. Draw Highlight Box (Red/Orange with glow + resize handles)
     if (step.highlight && step.highlight.width > 0) {
       const h = step.highlight;
+      const boxColor = h.color || selectedColor;
 
       ctx.save();
-      ctx.shadowColor = h.color || selectedColor;
-      ctx.shadowBlur = 14;
-      ctx.strokeStyle = h.color || selectedColor;
-      ctx.lineWidth = Math.max(4, Math.round(canvas.width * 0.0035));
+      ctx.shadowColor = boxColor;
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = boxColor;
+      ctx.lineWidth = Math.max(3, Math.round(canvas.width * 0.0035));
 
       // Draw rounded rectangle
-      drawRoundedRect(ctx, h.x - 2, h.y - 2, h.width + 4, h.height + 4, 8);
+      drawRoundedRect(ctx, h.x, h.y, h.width, h.height, 6);
       ctx.stroke();
 
       // Subtle translucent inner fill
-      ctx.fillStyle = (h.color || selectedColor) + '15'; // 8% opacity
+      ctx.fillStyle = boxColor + '14'; // ~8% opacity
       ctx.fill();
       ctx.restore();
+
+      // Draw 8 Interactive Resize Handles
+      drawResizeHandles(ctx, h.x, h.y, h.width, h.height, boxColor);
     }
 
     // 3. Draw Blur / Redaction Regions
@@ -126,6 +150,39 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     ctx.lineTo(x, y + radius);
     ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
+  }
+
+  function drawResizeHandles(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    color: string
+  ) {
+    const handleRadius = Math.max(5, Math.round(w * 0.015));
+    const points = [
+      { x, y }, // nw
+      { x: x + w / 2, y }, // n
+      { x: x + w, y }, // ne
+      { x: x + w, y: y + h / 2 }, // e
+      { x: x + w, y: y + h }, // se
+      { x: x + w / 2, y: y + h }, // s
+      { x, y: y + h }, // sw
+      { x, y: y + h / 2 } // w
+    ];
+
+    ctx.save();
+    for (const pt of points) {
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, handleRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function applyPixelateOrBlur(
@@ -168,52 +225,158 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     }
   }
 
-  // Mouse Handlers for Dragging
+  // Hit test handles or inside box
+  function getHitTestTarget(x: number, y: number): HandleType | null {
+    if (!step.highlight || step.highlight.width <= 0) return null;
+    const h = step.highlight;
+    const tol = Math.max(12, Math.round(h.width * 0.04)); // Tolerance
+
+    // Check corners
+    if (Math.hypot(x - h.x, y - h.y) <= tol) return 'nw';
+    if (Math.hypot(x - (h.x + h.width), y - h.y) <= tol) return 'ne';
+    if (Math.hypot(x - (h.x + h.width), y - (h.y + h.height)) <= tol) return 'se';
+    if (Math.hypot(x - h.x, y - (h.y + h.height)) <= tol) return 'sw';
+
+    // Check edges
+    if (Math.hypot(x - (h.x + h.width / 2), y - h.y) <= tol) return 'n';
+    if (Math.hypot(x - (h.x + h.width / 2), y - (h.y + h.height)) <= tol) return 's';
+    if (Math.hypot(x - h.x, y - (h.y + h.height / 2)) <= tol) return 'w';
+    if (Math.hypot(x - (h.x + h.width), y - (h.y + h.height / 2)) <= tol) return 'e';
+
+    // Check inside box for move
+    if (x >= h.x && x <= h.x + h.width && y >= h.y && y <= h.y + h.height) {
+      return 'move';
+    }
+
+    return null;
+  }
+
+  // Mouse Handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (activeTool === 'none' || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const scale = canvasRef.current.width / rect.width;
     const x = Math.round((e.clientX - rect.left) * scale);
     const y = Math.round((e.clientY - rect.top) * scale);
 
-    setIsDrawing(true);
-    setStartPos({ x, y });
-    setCurrentBox({ x, y, w: 0, h: 0 });
+    // If active tool is crop or blur, start dragging a new box
+    if (activeTool === 'crop' || activeTool === 'blur') {
+      setDragMode('new');
+      setStartPos({ x, y });
+      setCurrentBox({ x, y, w: 0, h: 0 });
+      return;
+    }
+
+    // In highlight mode: check if clicking on existing box handle or body
+    const hit = getHitTestTarget(x, y);
+    if (hit && step.highlight) {
+      setDragMode(hit);
+      setStartPos({ x, y });
+      setInitialBox({ ...step.highlight });
+    } else {
+      // Clicked outside: start drawing a new highlight box
+      setDragMode('new');
+      setStartPos({ x, y });
+      setCurrentBox({ x, y, w: 0, h: 0 });
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const scale = canvasRef.current.width / rect.width;
     const currentX = Math.round((e.clientX - rect.left) * scale);
     const currentY = Math.round((e.clientY - rect.top) * scale);
 
-    const x = Math.min(startPos.x, currentX);
-    const y = Math.min(startPos.y, currentY);
-    const w = Math.abs(currentX - startPos.x);
-    const h = Math.abs(currentY - startPos.y);
+    // Not dragging: update cursor based on hover
+    if (!dragMode || !startPos) {
+      if (activeTool === 'crop' || activeTool === 'blur') {
+        setHoverCursor('crosshair');
+        return;
+      }
+      const hit = getHitTestTarget(currentX, currentY);
+      if (hit === 'nw' || hit === 'se') setHoverCursor('nwse-resize');
+      else if (hit === 'ne' || hit === 'sw') setHoverCursor('nesw-resize');
+      else if (hit === 'n' || hit === 's') setHoverCursor('ns-resize');
+      else if (hit === 'e' || hit === 'w') setHoverCursor('ew-resize');
+      else if (hit === 'move') setHoverCursor('move');
+      else setHoverCursor('crosshair');
+      return;
+    }
 
-    setCurrentBox({ x, y, w, h });
+    // Dragging: Handle Resize or Move
+    const dx = currentX - startPos.x;
+    const dy = currentY - startPos.y;
+
+    if (dragMode === 'new') {
+      const x = Math.min(startPos.x, currentX);
+      const y = Math.min(startPos.y, currentY);
+      const w = Math.abs(currentX - startPos.x);
+      const h = Math.abs(currentY - startPos.y);
+      setCurrentBox({ x, y, w, h });
+    } else if (initialBox) {
+      let { x, y, width, height } = initialBox;
+
+      if (dragMode === 'move') {
+        x += dx;
+        y += dy;
+      } else if (dragMode === 'se') {
+        width = Math.max(20, initialBox.width + dx);
+        height = Math.max(20, initialBox.height + dy);
+      } else if (dragMode === 'ee' || dragMode === 'e') {
+        width = Math.max(20, initialBox.width + dx);
+      } else if (dragMode === 's') {
+        height = Math.max(20, initialBox.height + dy);
+      } else if (dragMode === 'nw') {
+        x = initialBox.x + dx;
+        y = initialBox.y + dy;
+        width = Math.max(20, initialBox.width - dx);
+        height = Math.max(20, initialBox.height - dy);
+      } else if (dragMode === 'ne') {
+        y = initialBox.y + dy;
+        width = Math.max(20, initialBox.width + dx);
+        height = Math.max(20, initialBox.height - dy);
+      } else if (dragMode === 'sw') {
+        x = initialBox.x + dx;
+        width = Math.max(20, initialBox.width - dx);
+        height = Math.max(20, initialBox.height + dy);
+      } else if (dragMode === 'n') {
+        y = initialBox.y + dy;
+        height = Math.max(20, initialBox.height - dy);
+      } else if (dragMode === 'w') {
+        x = initialBox.x + dx;
+        width = Math.max(20, initialBox.width - dx);
+      }
+
+      onUpdateStep({
+        highlight: {
+          x: Math.round(x),
+          y: Math.round(y),
+          width: Math.round(width),
+          height: Math.round(height),
+          color: initialBox.color || selectedColor,
+          style: 'border'
+        }
+      });
+    }
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || !currentBox) return;
-    setIsDrawing(false);
+    if (!dragMode) return;
 
-    if (currentBox.w > 15 && currentBox.h > 15) {
+    if (dragMode === 'new' && currentBox && currentBox.w > 15 && currentBox.h > 15) {
       if (activeTool === 'highlight') {
-        // Apply or Replace Highlight Box
-        const newHighlight: HighlightConfig = {
-          x: currentBox.x,
-          y: currentBox.y,
-          width: currentBox.w,
-          height: currentBox.h,
-          color: selectedColor,
-          style: 'border'
-        };
-        onUpdateStep({ highlight: newHighlight });
+        onUpdateStep({
+          highlight: {
+            x: currentBox.x,
+            y: currentBox.y,
+            width: currentBox.w,
+            height: currentBox.h,
+            color: selectedColor,
+            style: 'border'
+          }
+        });
       } else if (activeTool === 'blur') {
-        // Add Blur Region
         const newRegion: BlurRegion = {
           id: 'blur_' + Date.now(),
           x: currentBox.x,
@@ -223,16 +386,22 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
         };
         onUpdateStep({ blurRegions: [...(step.blurRegions || []), newRegion] });
       } else if (activeTool === 'crop') {
-        // Store selected crop box awaiting user confirmation
         setCropSelection(currentBox);
       }
     }
 
+    setDragMode(null);
     setCurrentBox(null);
     setStartPos(null);
+    setInitialBox(null);
   };
 
-  // Apply Crop Action
+  // Delete Highlight Box
+  const handleDeleteHighlight = () => {
+    onUpdateStep({ highlight: undefined });
+  };
+
+  // Apply Crop
   const applyCrop = () => {
     if (!cropSelection || !imageObjRef.current) return;
     const img = imageObjRef.current;
@@ -243,7 +412,6 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     const ctx = cropCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw only the selected cropped rectangle from the original image
     ctx.drawImage(
       img,
       cropSelection.x,
@@ -257,15 +425,12 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     );
 
     const croppedDataUrl = cropCanvas.toDataURL('image/png');
-
-    // Backup original screenshot if not already saved
     const original = step.originalScreenshot || step.screenshot;
 
     onUpdateStep({
       originalScreenshot: original,
       screenshot: croppedDataUrl,
       annotatedScreenshot: croppedDataUrl,
-      // Reset highlight so user can re-draw on new cropped bounds
       highlight: undefined,
       blurRegions: []
     });
@@ -274,13 +439,9 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     setActiveTool('highlight');
   };
 
-  const cancelCrop = () => {
-    setCropSelection(null);
-  };
-
-  // Reset to original uncropped screenshot
+  // Reset to original
   const handleResetToOriginal = () => {
-    if (confirm('Kembalikan gambar ke ukuran awal (batalkan crop & hapus anotasi)?')) {
+    if (confirm('Reset screenshot to original uncropped state and clear annotations?')) {
       const original = step.originalScreenshot || step.screenshot;
       onUpdateStep({
         screenshot: original,
@@ -308,7 +469,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
             }`}
           >
             <Square size={13} strokeWidth={2.5} />
-            <span>Kotak Merah / Sorotan</span>
+            <span>Red Focus Box</span>
           </button>
 
           {/* Crop Tool Button */}
@@ -321,7 +482,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
             }`}
           >
             <Crop size={13} strokeWidth={2.5} />
-            <span>Potong (Crop) Gambar</span>
+            <span>Crop Image</span>
           </button>
 
           {/* Blur Tool Button */}
@@ -334,10 +495,21 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
             }`}
           >
             <EyeOff size={13} strokeWidth={2.5} />
-            <span>Sensor / Blur</span>
+            <span>Blur / Redact</span>
           </button>
 
-          {/* Color Palette for Highlight */}
+          {/* Delete Highlight Box Button */}
+          {step.highlight && (
+            <button
+              onClick={handleDeleteHighlight}
+              title="Remove Highlight Box (or press Delete key)"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all ml-1"
+            >
+              <Trash2 size={12} /> Remove Box
+            </button>
+          )}
+
+          {/* Color Palette */}
           {activeTool === 'highlight' && (
             <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
               {HIGHLIGHT_COLORS.map((col) => (
@@ -370,10 +542,10 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
                 onClick={applyCrop}
                 className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm"
               >
-                <Check size={13} /> Terapkan Crop
+                <Check size={13} /> Apply Crop
               </button>
               <button
-                onClick={cancelCrop}
+                onClick={() => setCropSelection(null)}
                 className="p-1 hover:bg-slate-200 text-slate-600 rounded-lg text-xs"
               >
                 <X size={14} />
@@ -384,7 +556,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
               onClick={handleResetToOriginal}
               className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
             >
-              <RotateCcw size={12} /> Reset Ukuran Asli
+              <RotateCcw size={12} /> Reset Original
             </button>
           )}
         </div>
@@ -393,12 +565,17 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       {/* Instructions / Status hint */}
       <div className="text-[11px] text-slate-500 px-1 font-medium flex items-center justify-between">
         <span>
-          {activeTool === 'highlight' && '👉 Tarik kursor pada gambar untuk menggambar kotak merah / penanda fokus.'}
-          {activeTool === 'crop' && '👉 Tarik kursor membentuk kotak pada area yang ingin dipotong (crop).'}
-          {activeTool === 'blur' && '👉 Tarik kursor pada area data sensitif (nama, password, email) untuk disamarkan.'}
+          {activeTool === 'highlight' &&
+            (step.highlight
+              ? '💡 Drag handles to RESIZE box, drag inside to MOVE, or click "Remove Box" / press Delete.'
+              : '👉 Click and drag on the image to draw a new Red Focus Box.')}
+          {activeTool === 'crop' && '👉 Drag a rectangle over the region you want to crop.'}
+          {activeTool === 'blur' && '👉 Drag a rectangle over sensitive data (passwords, emails) to blur.'}
         </span>
         {step.highlight && (
-          <span className="text-rose-600 font-semibold">1 Kotak Sorotan Aktif</span>
+          <span className="text-rose-600 font-semibold flex items-center gap-1">
+            <Move size={11} /> Highlight Box Active
+          </span>
         )}
       </div>
 
@@ -412,11 +589,12 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          className="max-w-full max-h-[620px] object-contain rounded cursor-crosshair"
+          style={{ cursor: hoverCursor }}
+          className="max-w-full max-h-[620px] object-contain rounded"
         />
 
         {/* Live Dragging Box Overlay */}
-        {isDrawing && currentBox && canvasRef.current && (
+        {dragMode === 'new' && currentBox && canvasRef.current && (
           <div
             style={{
               position: 'absolute',

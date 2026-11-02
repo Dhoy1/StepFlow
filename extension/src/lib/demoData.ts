@@ -76,31 +76,32 @@ function generateMockScreenshot(stepText: string, highlightText: string): string
 export function createDemoWorkflow(): Workflow {
   return {
     id: 'wf_demo_sample',
-    title: 'Tutorial: Cara Menambahkan Karyawan Baru ke Sistem',
-    description: 'Panduan lengkap orientasi dan penginputan data pegawai pada portal HR.',
+    title: 'Tutorial: How to Add a New Employee to the System',
+    description: 'Step-by-step onboarding guide for registering new staff in the HR Portal.',
+    category: 'HR & People',
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    targetUrl: 'https://aplikasi-perusahaan.internal/karyawan/tambah',
+    targetUrl: 'https://company-portal.internal/employee/add',
     steps: [
       {
         id: 'step_1',
         order: 1,
         actionType: 'click',
-        title: 'Klik menu "Data Karyawan"',
-        description: 'Buka navigasi samping kiri dan pilih menu Data Karyawan untuk membuka daftar pegawai.',
-        url: 'https://aplikasi-perusahaan.internal/dashboard',
-        pageTitle: 'Dashboard Utama',
-        screenshot: generateMockScreenshot('Navigasi Menu Utama', 'Buka Menu'),
+        title: 'Click on "Employee Management" menu',
+        description: 'Open the left navigation sidebar and click on Employee Management to view the staff list.',
+        url: 'https://company-portal.internal/dashboard',
+        pageTitle: 'Main Dashboard',
+        screenshot: generateMockScreenshot('Main Dashboard Navigation', 'Open Menu'),
         callout: {
           type: 'info',
-          text: 'Pastikan Anda telah memiliki hak akses administrator sebelum melanjutkan.'
+          text: 'Ensure you are logged in with an Administrator account before proceeding.'
         },
         highlight: {
           x: 100,
           y: 340,
           width: 200,
           height: 46,
-          color: '#FF5C35',
+          color: '#EF4444',
           style: 'border'
         }
       },
@@ -108,21 +109,21 @@ export function createDemoWorkflow(): Workflow {
         id: 'step_2',
         order: 2,
         actionType: 'input',
-        title: 'Ketik Email Karyawan Baru',
-        description: 'Masukkan alamat email resmi kantor karyawan yang bersangkutan pada formulir.',
-        url: 'https://aplikasi-perusahaan.internal/karyawan/tambah',
-        pageTitle: 'Formulir Tambah Pegawai',
-        screenshot: generateMockScreenshot('Formulir Pendaftaran Pegawai', 'Kirim Undangan'),
+        title: 'Type into "Official Email" field',
+        description: 'Enter the official company email address of the employee into the input field.',
+        url: 'https://company-portal.internal/employee/add',
+        pageTitle: 'New Employee Registration Form',
+        screenshot: generateMockScreenshot('New Employee Registration Form', 'Send Invite'),
         callout: {
           type: 'tip',
-          text: 'Gunakan format email resmi @perusahaan.com agar terintegrasi otomatis dengan SSO.'
+          text: 'Use the official @company.com email format for automatic SSO integration.'
         },
         highlight: {
           x: 100,
           y: 260,
           width: 450,
           height: 46,
-          color: '#FF5C35',
+          color: '#EF4444',
           style: 'border'
         }
       },
@@ -130,21 +131,21 @@ export function createDemoWorkflow(): Workflow {
         id: 'step_3',
         order: 3,
         actionType: 'click',
-        title: 'Klik tombol "Simpan & Verifikasi"',
-        description: 'Klik tombol simpan untuk mengirimkan data ke basis data dan mengirim email aktivasi.',
-        url: 'https://aplikasi-perusahaan.internal/karyawan/tambah',
-        pageTitle: 'Formulir Tambah Pegawai',
-        screenshot: generateMockScreenshot('Konfirmasi Data Pegawai', 'Simpan Data'),
+        title: 'Click on "Save & Verify" button',
+        description: 'Click on the save button to submit the employee record and dispatch the activation email.',
+        url: 'https://company-portal.internal/employee/add',
+        pageTitle: 'Confirm Employee Details',
+        screenshot: generateMockScreenshot('Confirm Employee Details', 'Save Record'),
         callout: {
           type: 'warning',
-          text: 'Data NIK dan nomor rekening tidak dapat diubah setelah diverifikasi.'
+          text: 'Employee ID and bank account details cannot be modified after verification.'
         },
         highlight: {
           x: 100,
           y: 340,
           width: 200,
           height: 46,
-          color: '#FF5C35',
+          color: '#EF4444',
           style: 'border'
         }
       }

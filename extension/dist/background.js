@@ -42,10 +42,10 @@ function Aa() {
         return e.concat(a || Array.prototype.slice.call(t));
       }
       typeof SuppressedError == "function" && SuppressedError;
-      var W = typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : typeof window < "u" ? window : xa, $ = Object.keys, L = Array.isArray;
+      var W = typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : typeof window < "u" ? window : xa, G = Object.keys, L = Array.isArray;
       typeof Promise < "u" && !W.Promise && (W.Promise = Promise);
       function J(e, t) {
-        return typeof t != "object" || $(t).forEach(function(n) {
+        return typeof t != "object" || G(t).forEach(function(n) {
           e[n] = t[n];
         }), e;
       }
@@ -54,7 +54,7 @@ function Aa() {
         return Y.call(e, t);
       }
       function Ne(e, t) {
-        typeof t == "function" && (t = t(z(e))), (typeof Reflect > "u" ? $ : Reflect.ownKeys)(t).forEach(function(n) {
+        typeof t == "function" && (t = t(z(e))), (typeof Reflect > "u" ? G : Reflect.ownKeys)(t).forEach(function(n) {
           me(e, n, t[n]);
         });
       }
@@ -167,12 +167,12 @@ function Aa() {
       }), Wn = new Set(Wr.map(function(e) {
         return W[e];
       }));
-      function $n(e) {
+      function Gn(e) {
         var t = {};
         for (var n in e)
           if (te(e, n)) {
             var r = e[n];
-            t[n] = !r || typeof r != "object" || Wn.has(r.constructor) ? r : $n(r);
+            t[n] = !r || typeof r != "object" || Wn.has(r.constructor) ? r : Gn(r);
           }
         return t;
       }
@@ -202,13 +202,13 @@ function Aa() {
         }
         return t;
       }
-      var $r = {}.toString;
-      function $t(e) {
-        return $r.call(e).slice(8, -1);
+      var Gr = {}.toString;
+      function Gt(e) {
+        return Gr.call(e).slice(8, -1);
       }
-      var Gt = typeof Symbol < "u" ? Symbol.iterator : "@@iterator", Gr = typeof Gt == "symbol" ? function(e) {
+      var $t = typeof Symbol < "u" ? Symbol.iterator : "@@iterator", $r = typeof $t == "symbol" ? function(e) {
         var t;
-        return e != null && (t = e[Gt]) && t.apply(e);
+        return e != null && (t = e[$t]) && t.apply(e);
       } : function() {
         return null;
       };
@@ -224,7 +224,7 @@ function Aa() {
             return e.slice();
           if (this === Ve && typeof e == "string")
             return [e];
-          if (i = Gr(e)) {
+          if (i = $r(e)) {
             for (n = []; r = i.next(), !r.done; )
               n.push(r.value);
             return n;
@@ -263,7 +263,7 @@ function Aa() {
         "DatabaseClosed",
         "PrematureCommit",
         "ForeignAwait"
-      ], Gn = [
+      ], $n = [
         "Unknown",
         "Constraint",
         "Data",
@@ -278,7 +278,7 @@ function Aa() {
         "QuotaExceeded",
         "Syntax",
         "DataClone"
-      ], Ht = Yr.concat(Gn), Hr = {
+      ], Ht = Yr.concat($n), Hr = {
         VersionChanged: "Database version changed by other database connection",
         DatabaseClosed: "Database has been closed",
         Abort: "Transaction aborted",
@@ -322,7 +322,7 @@ function Aa() {
         return Le(r).from(Qr), e[t] = r, e;
       }, {});
       C.Syntax = SyntaxError, C.Type = TypeError, C.Range = RangeError;
-      var Hn = Gn.reduce(function(e, t) {
+      var Hn = $n.reduce(function(e, t) {
         return e[t + "Error"] = C[t], e;
       }, {});
       function Xr(e, t) {
@@ -609,7 +609,7 @@ function Aa() {
               var r = e._lib && We();
               n && typeof n.then == "function" ? er(e, function(i, a) {
                 n instanceof A ? n._then(i, a) : n.then(i, a);
-              }) : (e._state = !0, e._value = n, tr(e)), r && $e();
+              }) : (e._state = !0, e._value = n, tr(e)), r && Ge();
             }
           }, nn.bind(null, e));
         } catch (n) {
@@ -619,7 +619,7 @@ function Aa() {
       function nn(e, t) {
         if (yt.push(t), e._state === null) {
           var n = e._lib && We();
-          t = en(t), e._state = !1, e._value = t, si(e), tr(e), n && $e();
+          t = en(t), e._state = !1, e._value = t, si(e), tr(e), n && Ge();
         }
       }
       function tr(e) {
@@ -656,14 +656,14 @@ function Aa() {
       }
       function ui() {
         Pe(ve, function() {
-          We() && $e();
+          We() && Ge();
         });
       }
       function We() {
         var e = qt;
         return qt = !1, pt = !1, e;
       }
-      function $e() {
+      function Ge() {
         var e, t, n;
         do
           for (; tt.length > 0; )
@@ -714,7 +714,7 @@ function Aa() {
           } catch (a) {
             t && t(a);
           } finally {
-            we(i, !1), r && $e();
+            we(i, !1), r && Ge();
           }
         };
       }
@@ -740,18 +740,18 @@ function Aa() {
         var u = Pe(a, e, n, r);
         return a.ref === 0 && a.finalize(), u;
       }
-      function Ge() {
+      function $e() {
         return Q.id || (Q.id = ++li), ++Q.awaits, Q.echoes += Xn, Q.id;
       }
       function be() {
         return Q.awaits ? (--Q.awaits === 0 && (Q.id = 0), Q.echoes = Q.awaits * Xn, !0) : !1;
       }
-      ("" + ri).indexOf("[native code]") === -1 && (Ge = be = F);
+      ("" + ri).indexOf("[native code]") === -1 && ($e = be = F);
       function xt(e) {
-        return Q.echoes && e && e.constructor === De ? (Ge(), e.then(function(t) {
+        return Q.echoes && e && e.constructor === De ? ($e(), e.then(function(t) {
           return be(), t;
         }, function(t) {
-          return be(), G(t);
+          return be(), $(t);
         })) : e;
       }
       function hi(e) {
@@ -792,7 +792,7 @@ function Aa() {
       function rr(e, t, n, r) {
         return typeof e != "function" ? e : function() {
           var i = K;
-          n && Ge(), we(t, !0);
+          n && $e(), we(t, !0);
           try {
             return e.apply(this, arguments);
           } finally {
@@ -803,14 +803,14 @@ function Aa() {
       function un(e) {
         Promise === De && Q.echoes === 0 ? wt === 0 ? e() : enqueueNativeMicroTask(e) : setTimeout(e, 0);
       }
-      var G = A.reject;
+      var $ = A.reject;
       function on(e, t, n, r) {
         if (!e.idbdb || !e._state.openComplete && !K.letThrough && !e._vip) {
           if (e._state.openComplete)
-            return G(new C.DatabaseClosed(e._state.dbOpenError));
+            return $(new C.DatabaseClosed(e._state.dbOpenError));
           if (!e._state.isBeingOpened) {
             if (!e._state.autoOpen)
-              return G(new C.DatabaseClosed());
+              return $(new C.DatabaseClosed());
             e.open().catch(F);
           }
           return e._state.dbReadyPromise.then(function() {
@@ -823,7 +823,7 @@ function Aa() {
           } catch (a) {
             return a.name === Qt.InvalidState && e.isOpen() && --e._state.PR1398_maxLoop > 0 ? (console.warn("Dexie: Need to reopen db"), e.close({ disableAutoOpen: !1 }), e.open().then(function() {
               return on(e, t, n, r);
-            })) : G(a);
+            })) : $(a);
           }
           return i._promise(t, function(a, u) {
             return ge(function() {
@@ -903,7 +903,7 @@ function Aa() {
           return t;
         if (ArrayBuffer.isView(e))
           return "binary";
-        var n = $t(e);
+        var n = Gt(e);
         return n === "ArrayBuffer" ? "binary" : n;
       }
       function lr(e) {
@@ -961,7 +961,7 @@ function Aa() {
         }, e;
       })();
       function fr(e, t) {
-        for (var n = $(t), r = n.length, i = !1, a = 0; a < r; ++a) {
+        for (var n = G(t), r = n.length, i = !1, a = 0; a < r; ++a) {
           var u = n[a], o = t[u], s = he(e, u);
           o instanceof nt ? (re(e, u, o.execute(s)), i = !0) : s !== o && (re(e, u, o), i = !0);
         }
@@ -983,14 +983,14 @@ function Aa() {
               return i._promise(t, o, r);
             }, { trans: i, transless: K.transless || K }) : on(this.db, t, [this.name], o);
             return u && (c._consoleTask = u, c = c.catch(function(l) {
-              return console.trace(l), G(l);
+              return console.trace(l), $(l);
             })), c;
           } finally {
-            s && $e();
+            s && Ge();
           }
         }, e.prototype.get = function(t, n) {
           var r = this;
-          return t && t.constructor === Object ? this.where(t).first(n) : t == null ? G(new C.Type("Invalid argument to Table.get()")) : this._trans("readonly", function(i) {
+          return t && t.constructor === Object ? this.where(t).first(n) : t == null ? $(new C.Type("Invalid argument to Table.get()")) : this._trans("readonly", function(i) {
             return r.core.get({ trans: i, key: t }).then(function(a) {
               return r.hook.reading.fire(a);
             });
@@ -1000,7 +1000,7 @@ function Aa() {
             return new this.db.WhereClause(this, t);
           if (L(t))
             return new this.db.WhereClause(this, "[".concat(t.join("+"), "]"));
-          var n = $(t);
+          var n = G(t);
           if (n.length === 1)
             return this.where(n[0]).equals(t[n[0]]);
           var r = this.schema.indexes.concat(this.schema.primKey).filter(function(l) {
@@ -1138,7 +1138,7 @@ function Aa() {
         }, e.prototype.update = function(t, n) {
           if (typeof t == "object" && !L(t)) {
             var r = he(t, this.schema.primKey.keyPath);
-            return r === void 0 ? G(new C.InvalidArgument("Given object does not contain its primary key")) : this.where(":id").equals(r).modify(n);
+            return r === void 0 ? $(new C.InvalidArgument("Given object does not contain its primary key")) : this.where(":id").equals(r).modify(n);
           } else
             return this.where(":id").equals(t).modify(n);
         }, e.prototype.put = function(t, n) {
@@ -1331,7 +1331,7 @@ function Aa() {
           return t[o] = n[o] = l, l;
         }
         function u(o) {
-          $(o).forEach(function(s) {
+          G(o).forEach(function(s) {
             var c = o[s];
             if (L(c))
               a(s, o[s][0], o[s][1]);
@@ -1446,10 +1446,10 @@ function Aa() {
         }
         return e.prototype._read = function(t, n) {
           var r = this._ctx;
-          return r.error ? r.table._trans(null, G.bind(null, r.error)) : r.table._trans("readonly", t).then(n);
+          return r.error ? r.table._trans(null, $.bind(null, r.error)) : r.table._trans("readonly", t).then(n);
         }, e.prototype._write = function(t) {
           var n = this._ctx;
-          return n.error ? n.table._trans(null, G.bind(null, n.error)) : n.table._trans("readwrite", t, "locked");
+          return n.error ? n.table._trans(null, $.bind(null, n.error)) : n.table._trans("readwrite", t, "locked");
         }, e.prototype._addAlgorithm = function(t) {
           var n = this._ctx;
           n.algorithm = Re(n.algorithm, t);
@@ -1647,7 +1647,7 @@ function Aa() {
             var v = [], b = 0, f = [], h = function(p, _) {
               var w = _.failures, m = _.numFailures;
               b += p - m;
-              for (var g = 0, S = $(w); g < S.length; g++) {
+              for (var g = 0, S = G(w); g < S.length; g++) {
                 var x = S[g];
                 v.push(w[x]);
               }
@@ -2100,9 +2100,9 @@ function Aa() {
         }, e.prototype._promise = function(t, n, r) {
           var i = this;
           if (t === "readwrite" && this.mode !== "readwrite")
-            return G(new C.ReadOnly("Transaction is readonly"));
+            return $(new C.ReadOnly("Transaction is readonly"));
           if (!this.active)
-            return G(new C.TransactionInactive());
+            return $(new C.TransactionInactive());
           if (this._locked())
             return new A(function(u, o) {
               i._blockedFuncs.push([
@@ -2182,7 +2182,7 @@ function Aa() {
             o.active = !1, o.on.complete.fire();
           }, function(s) {
             var c = o.active;
-            return o.active = !1, o.on.error.fire(s), o.parent ? o.parent._reject(s) : c && o.idbtrans && o.idbtrans.abort(), G(s);
+            return o.active = !1, o.on.error.fire(s), o.parent ? o.parent._reject(s) : c && o.idbtrans && o.idbtrans.abort(), $(s);
           });
         });
       }
@@ -2565,7 +2565,7 @@ function Aa() {
         var u = a._reject.bind(a), o = K.transless || K;
         ge(function() {
           if (K.trans = a, K.transless = o, t === 0)
-            $(i).forEach(function(s) {
+            G(i).forEach(function(s) {
               bn(n, s, i[s].primKey, i[s].indexes);
             }), Ot(e, n), A.follow(function() {
               return e.on.populate.fire(a);
@@ -2629,9 +2629,9 @@ function Aa() {
               var f = zn(d);
               v.del.forEach(function(_) {
                 f[_] = l[_];
-              }), mn(e, [e.Transaction.prototype]), Ct(e, [e.Transaction.prototype], $(f), f), n.schema = f;
+              }), mn(e, [e.Transaction.prototype]), Ct(e, [e.Transaction.prototype], G(f), f), n.schema = f;
               var h = Yt(b);
-              h && Ge();
+              h && $e();
               var y, p = A.follow(function() {
                 if (y = b(n), y && h) {
                   var _ = be.bind(null, null);
@@ -2702,7 +2702,7 @@ function Aa() {
         }), i;
       }
       function wr(e, t) {
-        $(e).forEach(function(n) {
+        G(e).forEach(function(n) {
           t.db.objectStoreNames.contains(n) || (fe && console.debug("Dexie: Creating missing table", n), bn(t, n, e[n].primKey, e[n].indexes));
         });
       }
@@ -2732,7 +2732,7 @@ function Aa() {
       function Li(e, t, n) {
         e.verno = t.version / 10;
         var r = e._dbSchema = It(e, t, n);
-        e._storeNames = ht(t.objectStoreNames, 0), Ct(e, [e._allTables], $(r), r);
+        e._storeNames = ht(t.objectStoreNames, 0), Ct(e, [e._allTables], G(r), r);
       }
       function Vi(e, t) {
         var n = It(e, e.idbdb, t), r = gn(n, e._dbSchema);
@@ -2771,7 +2771,7 @@ function Aa() {
           return _r(t);
         }, e.prototype._parseStoresSpec = function(t, n) {
           var r = this;
-          $(t).forEach(function(i) {
+          G(t).forEach(function(i) {
             if (t[i] !== null) {
               var a = r._parseIndexSyntax(t[i]), u = a.shift();
               if (!u)
@@ -2794,7 +2794,7 @@ function Aa() {
           var r = n._versions, i = {}, a = {};
           return r.forEach(function(u) {
             J(i, u._cfg.storesSource), a = u._cfg.dbschema = {}, u._parseStoresSpec(i, a);
-          }), n._dbSchema = a, mn(n, [n._allTables, n, n.Transaction.prototype]), Ct(n, [n._allTables, n, n.Transaction.prototype, this._cfg.tables], $(a), a), n._storeNames = $(a), this;
+          }), n._dbSchema = a, mn(n, [n._allTables, n, n.Transaction.prototype]), Ct(n, [n._allTables, n, n.Transaction.prototype, this._cfg.tables], G(a), a), n._storeNames = G(a), this;
         }, e.prototype.upgrade = function(t) {
           return this._cfg.contentUpgrade = Xt(this._cfg.contentUpgrade || F, t), this;
         }, e;
@@ -2864,7 +2864,7 @@ function Aa() {
       function _n(e) {
         return e && typeof e.databases == "function";
       }
-      function $i(e) {
+      function Gi(e) {
         var t = e.indexedDB, n = e.IDBKeyRange;
         return _n(t) ? Promise.resolve(t.databases()).then(function(r) {
           return r.map(function(i) {
@@ -2874,7 +2874,7 @@ function Aa() {
           });
         }) : wn(t, n).toCollection().primaryKeys();
       }
-      function Gi(e, t) {
+      function $i(e, t) {
         var n = e.indexedDB, r = e.IDBKeyRange;
         !_n(n) && t !== Et && wn(n, r).put({ name: t }).catch(F);
       }
@@ -2930,7 +2930,7 @@ function Aa() {
           var t = Bt(this).next(e).value;
           return t && M(t.from, e) <= 0 && M(t.to, e) >= 0;
         }
-      }, En[Gt] = function() {
+      }, En[$t] = function() {
         return Bt(this);
       }, En));
       function ct(e, t, n) {
@@ -3009,8 +3009,8 @@ function Aa() {
         return (t ? n ? Math.max(t.d, n.d) : t.d : n ? n.d : 0) + 1;
       }
       function Mt(e, t) {
-        return $(t).forEach(function(n) {
-          e[n] ? lt(e[n], t[n]) : e[n] = $n(t[n]);
+        return G(t).forEach(function(n) {
+          e[n] ? lt(e[n], t[n]) : e[n] = Gn(t[n]);
         }), e;
       }
       function An(e, t) {
@@ -3066,7 +3066,7 @@ function Aa() {
         var t = e._state, n = e._deps.indexedDB;
         if (t.isBeingOpened || e.idbdb)
           return t.dbReadyPromise.then(function() {
-            return t.dbOpenError ? G(t.dbOpenError) : e;
+            return t.dbOpenError ? $(t.dbOpenError) : e;
           });
         t.isBeingOpened = !0, t.dbOpenError = null, t.openComplete = !1;
         var r = t.openCanceller, i = Math.round(e.verno * 10), a = !1;
@@ -3110,7 +3110,7 @@ function Aa() {
                 t.vcFired = !0, e.on("versionchange").fire(w);
               }), y.onclose = U(function() {
                 e.close({ disableAutoOpen: !1 });
-              }), c && Gi(e._deps, f), v();
+              }), c && $i(e._deps, f), v();
             }, b);
           }).catch(function(v) {
             switch (v == null ? void 0 : v.name) {
@@ -3148,7 +3148,7 @@ function Aa() {
             s && s.abort();
           } catch {
           }
-          return r === t.openCanceller && e._close(), G(v);
+          return r === t.openCanceller && e._close(), $(v);
         }).finally(function() {
           t.openComplete = !0, o();
         }).then(function() {
@@ -3203,10 +3203,10 @@ function Aa() {
             } catch (d) {
               return d.name === Qt.InvalidState && e.isOpen() && --e._state.PR1398_maxLoop > 0 ? (console.warn("Dexie: Need to reopen db"), e.close({ disableAutoOpen: !1 }), e.open().then(function() {
                 return kr(e, t, n, null, i);
-              })) : G(d);
+              })) : $(d);
             }
           var s = Yt(i);
-          s && Ge();
+          s && $e();
           var c, l = A.follow(function() {
             if (c = i.call(u, u), c)
               if (s) {
@@ -3215,7 +3215,7 @@ function Aa() {
               } else typeof c.next == "function" && typeof c.throw == "function" && (c = Dn(c));
           }, o);
           return (c && typeof c.then == "function" ? A.resolve(c).then(function(d) {
-            return u.active ? d : G(new C.PrematureCommit("Transaction committed too early. See http://bit.ly/2kdckMn"));
+            return u.active ? d : $(new C.PrematureCommit("Transaction committed too early. See http://bit.ly/2kdckMn"));
           }) : l.then(function() {
             return c;
           })).then(function(d) {
@@ -3223,7 +3223,7 @@ function Aa() {
               return d;
             });
           }).catch(function(d) {
-            return u._reject(d), G(d);
+            return u._reject(d), $(d);
           });
         });
       }
@@ -3323,17 +3323,17 @@ function Aa() {
         create: Ji
       };
       function On(e, t, n, r) {
-        return n = n || {}, r = r || "", $(e).forEach(function(i) {
+        return n = n || {}, r = r || "", G(e).forEach(function(i) {
           if (!te(t, i))
             n[r + i] = void 0;
           else {
             var a = e[i], u = t[i];
             if (typeof a == "object" && typeof u == "object" && a && u) {
-              var o = $t(a), s = $t(u);
+              var o = Gt(a), s = Gt(u);
               o !== s ? n[r + i] = t[i] : o === "Object" ? On(a, u, n, r + i + ".") : a !== u && (n[r + i] = t[i]);
             } else a !== u && (n[r + i] = t[i]);
           }
-        }), $(t).forEach(function(i) {
+        }), G(t).forEach(function(i) {
           te(e, i) || (n[r + i] = t[i]);
         }), n;
       }
@@ -3566,7 +3566,7 @@ function Aa() {
               query: v,
               openCursor: v
             };
-            return $(b).forEach(function(f) {
+            return G(b).forEach(function(f) {
               d[f] = function(h) {
                 var y = K.subscr, p = !!y, _ = Kr(K, i) && Dr(f, h), w = _ ? h.obsSet = {} : y;
                 if (p) {
@@ -4154,7 +4154,7 @@ function Aa() {
         }, Object.defineProperty(e.prototype, "tables", {
           get: function() {
             var t = this;
-            return $(this._allTables).map(function(n) {
+            return G(this._allTables).map(function(n) {
               return t._allTables[n];
             });
           },
@@ -4198,7 +4198,7 @@ function Aa() {
           } catch (l) {
             return a ? a._promise(null, function(d, v) {
               v(l);
-            }) : G(l);
+            }) : $(l);
           }
           var c = kr.bind(null, this, o, s, a, r);
           return a ? a._promise(o, c, "lock") : K.trans ? Pe(K.transless, function() {
@@ -4233,11 +4233,11 @@ function Aa() {
           function u(p) {
             var _ = We();
             try {
-              a && Ge();
+              a && $e();
               var w = ge(e, p);
               return a && (w = w.finally(be)), w;
             } finally {
-              _ && $e();
+              _ && Ge();
             }
           }
           var o = !1, s, c = {}, l = {}, d = {
@@ -4303,9 +4303,9 @@ function Aa() {
         },
         getDatabaseNames: function(e) {
           try {
-            return $i(Me.dependencies).then(e);
+            return Gi(Me.dependencies).then(e);
           } catch {
-            return G(new C.MissingAPI());
+            return $(new C.MissingAPI());
           }
         },
         defineClass: function() {
@@ -4324,7 +4324,7 @@ function Aa() {
               var t = Dn(e.apply(this, arguments));
               return !t || typeof t.then != "function" ? A.resolve(t) : t;
             } catch (n) {
-              return G(n);
+              return $(n);
             }
           };
         },
@@ -4333,7 +4333,7 @@ function Aa() {
             var r = Dn(e.apply(n, t || []));
             return !r || typeof r.then != "function" ? A.resolve(r) : r;
           } catch (i) {
-            return G(i);
+            return $(i);
           }
         },
         currentTransaction: {
@@ -4502,7 +4502,7 @@ function jr() {
   return "wf_" + Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 9);
 }
 chrome.runtime.onMessage.addListener((j, ee, ae) => ((async () => {
-  var P, Ae, W, $, L, J;
+  var P, Ae, W, G, L, J;
   switch (j.type) {
     case "GET_STATUS":
       return {
@@ -4520,9 +4520,9 @@ chrome.runtime.onMessage.addListener((j, ee, ae) => ((async () => {
       }
       return N || (N = {
         id: jr(),
-        title: ((Ae = j.payload) == null ? void 0 : Ae.title) || z.title || "Panduan Workflow Baru",
-        description: "Tutorial langkah demi langkah yang direkam secara otomatis.",
-        category: ((W = j.payload) == null ? void 0 : W.category) || "Umum",
+        title: ((Ae = j.payload) == null ? void 0 : Ae.title) || z.title || "New Workflow Guide",
+        description: "Step-by-step tutorial automatically captured from website workflow.",
+        category: ((W = j.payload) == null ? void 0 : W.category) || "General",
         createdAt: Date.now(),
         updatedAt: Date.now(),
         targetUrl: z.url || "",
@@ -4549,9 +4549,9 @@ chrome.runtime.onMessage.addListener((j, ee, ae) => ((async () => {
           id: jr(),
           order: N.steps.length + 1,
           actionType: Y.actionType || "click",
-          title: Y.title || `Langkah ${N.steps.length + 1}`,
+          title: Y.title || `Step ${N.steps.length + 1}`,
           description: Y.description || "",
-          url: Y.url || (($ = ee.tab) == null ? void 0 : $.url) || "",
+          url: Y.url || ((G = ee.tab) == null ? void 0 : G.url) || "",
           pageTitle: Y.pageTitle || ((L = ee.tab) == null ? void 0 : L.title) || "",
           targetElement: Y.targetElement,
           screenshot: z,

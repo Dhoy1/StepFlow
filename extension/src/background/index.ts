@@ -61,9 +61,9 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         if (!currentWorkflow) {
           currentWorkflow = {
             id: generateId(),
-            title: message.payload?.title || activeTab.title || 'Panduan Workflow Baru',
-            description: 'Tutorial langkah demi langkah yang direkam secara otomatis.',
-            category: message.payload?.category || 'Umum',
+            title: message.payload?.title || activeTab.title || 'New Workflow Guide',
+            description: 'Step-by-step tutorial automatically captured from website workflow.',
+            category: message.payload?.category || 'General',
             createdAt: Date.now(),
             updatedAt: Date.now(),
             targetUrl: activeTab.url || '',
@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
             id: generateId(),
             order: currentWorkflow.steps.length + 1,
             actionType: meta.actionType || 'click',
-            title: meta.title || `Langkah ${currentWorkflow.steps.length + 1}`,
+            title: meta.title || `Step ${currentWorkflow.steps.length + 1}`,
             description: meta.description || '',
             url: meta.url || sender.tab?.url || '',
             pageTitle: meta.pageTitle || sender.tab?.title || '',

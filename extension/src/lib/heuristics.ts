@@ -11,16 +11,16 @@ export function getElementReadableLabel(el: HTMLElement): string {
   if (el instanceof HTMLButtonElement || el instanceof HTMLAnchorElement || el.getAttribute('role') === 'button') {
     const text = el.innerText || el.textContent || '';
     if (text.trim()) {
-      return text.trim().slice(0, 40);
+      return text.trim().slice(0, 45);
     }
   }
 
-  // 3. Check placeholder for inputs
+  // 3. Check placeholder or associated label for inputs
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
     if (el.placeholder && el.placeholder.trim()) {
       return el.placeholder.trim();
     }
-    // Check associated <label>
+    // Check associated <label for="...">
     if (el.id) {
       const label = document.querySelector(`label[for="${el.id}"]`);
       if (label && label.textContent?.trim()) {
@@ -30,7 +30,7 @@ export function getElementReadableLabel(el: HTMLElement): string {
     // Check parent label
     const parentLabel = el.closest('label');
     if (parentLabel && parentLabel.textContent?.trim()) {
-      return parentLabel.textContent.trim().slice(0, 40);
+      return parentLabel.textContent.trim().slice(0, 45);
     }
     // Check name or id attribute
     if (el.name) return el.name;
@@ -42,7 +42,7 @@ export function getElementReadableLabel(el: HTMLElement): string {
     return el.alt;
   }
 
-  // 5. Fallback to tag name or class
+  // 5. Fallback to tag name or text
   const text = el.innerText || el.textContent || '';
   if (text.trim() && text.trim().length <= 30) {
     return text.trim();
@@ -57,16 +57,17 @@ export function generateStepInstruction(
   meta?: Partial<TargetElementMeta>
 ): { title: string; description: string } {
   if (eventType === 'navigation') {
+    const pageTitle = document.title || window.location.href;
     return {
-      title: 'Navigasi ke Halaman',
-      description: `Buka halaman ${document.title || window.location.href}`
+      title: `Navigate to ${pageTitle}`,
+      description: `Open and navigate to the ${pageTitle} page.`
     };
   }
 
   if (!el) {
     return {
-      title: 'Interaksi Halaman',
-      description: 'Lakukan interaksi pada layar'
+      title: 'Interact with Page',
+      description: 'Perform the required interaction on the screen.'
     };
   }
 
@@ -76,57 +77,57 @@ export function generateStepInstruction(
   if (eventType === 'click') {
     if (tag === 'button' || el.getAttribute('role') === 'button') {
       return {
-        title: `Klik "${label}"`,
-        description: `Klik tombol "${label}" untuk melanjutkan proses.`
+        title: `Click on "${label}" button`,
+        description: `Click on the "${label}" button to proceed.`
       };
     }
     if (tag === 'a') {
       return {
-        title: `Klik link "${label}"`,
-        description: `Klik tautan "${label}" untuk berpindah halaman.`
+        title: `Click on "${label}" link`,
+        description: `Click on the "${label}" link to open the page.`
       };
     }
     if (tag === 'input' && (el as HTMLInputElement).type === 'checkbox') {
       return {
-        title: `Centang opsi "${label}"`,
-        description: `Pilih atau centang kotak "${label}".`
+        title: `Check "${label}" checkbox`,
+        description: `Click to toggle or check the "${label}" checkbox.`
       };
     }
     if (tag === 'input' && (el as HTMLInputElement).type === 'radio') {
       return {
-        title: `Pilih opsi "${label}"`,
-        description: `Pilih opsi radio "${label}".`
+        title: `Select "${label}" radio option`,
+        description: `Select the "${label}" option from the list.`
       };
     }
     return {
-      title: `Klik pada "${label}"`,
-      description: `Klik elemen "${label}" pada halaman.`
+      title: `Click on "${label}"`,
+      description: `Click on the "${label}" element to continue.`
     };
   }
 
   if (eventType === 'input' || eventType === 'change') {
     if (tag === 'select') {
       return {
-        title: `Pilih dropdown "${label}"`,
-        description: `Pilih salah satu opsi dari menu dropdown "${label}".`
+        title: `Select dropdown option for "${label}"`,
+        description: `Choose the desired option from the "${label}" dropdown menu.`
       };
     }
     const inputEl = el as HTMLInputElement;
     if (inputEl.type === 'password') {
       return {
-        title: `Masukkan Password pada "${label}"`,
-        description: `Ketik password Anda pada kolom "${label}".`
+        title: `Enter Password into "${label}" field`,
+        description: `Type your password into the "${label}" field.`
       };
     }
     return {
-      title: `Ketik pada kolom "${label}"`,
-      description: `Masukkan teks atau data yang diperlukan pada kolom "${label}".`
+      title: `Type into "${label}" field`,
+      description: `Enter the required text or information into the "${label}" field.`
     };
   }
 
   return {
-    title: `Lakukan aksi pada "${label}"`,
-    description: `Interaksi dengan elemen ${label}.`
+    title: `Interact with "${label}"`,
+    description: `Interact with the "${label}" element.`
   };
 }
 
@@ -138,4 +139,3 @@ export function getElementSelector(el: HTMLElement): string {
   }
   return el.tagName.toLowerCase();
 }
-

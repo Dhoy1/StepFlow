@@ -16,7 +16,14 @@ import {
 import { getAllWorkflows, deleteWorkflow } from '../lib/db';
 import type { Workflow, RecordingStatus } from '../types';
 
-const DEFAULT_CATEGORIES = ['Umum', 'HRD & Karyawan', 'Keuangan & Finance', 'IT & Sistem', 'Operasional', 'Sales & Marketing'];
+const DEFAULT_CATEGORIES = [
+  'General',
+  'HR & People',
+  'Finance & Accounting',
+  'IT & Systems',
+  'Operations',
+  'Sales & Marketing'
+];
 
 export const Popup: React.FC = () => {
   const [status, setStatus] = useState<RecordingStatus>('idle');
@@ -26,7 +33,7 @@ export const Popup: React.FC = () => {
   
   // Recording Mode: 'new' vs 'append'
   const [recordMode, setRecordMode] = useState<'new' | 'append'>('new');
-  const [selectedCategory, setSelectedCategory] = useState('Umum');
+  const [selectedCategory, setSelectedCategory] = useState('General');
   const [customCategory, setCustomCategory] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [appendToWorkflowId, setAppendToWorkflowId] = useState('');
@@ -41,8 +48,8 @@ export const Popup: React.FC = () => {
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
-        setActiveTabTitle(tabs[0].title || 'Tab saat ini');
-        setCustomTitle(tabs[0].title || 'Panduan Alur Baru');
+        setActiveTabTitle(tabs[0].title || 'Current Tab');
+        setCustomTitle(tabs[0].title || 'New Workflow Guide');
       }
     });
 
