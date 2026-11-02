@@ -1,17 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Pause, Square, ExternalLink, Clock, FileText, ChevronRight, Sparkles } from 'lucide-react';
-import { getAllWorkflows } from '../lib/db';
+import {
+  Play,
+  Pause,
+  Square,
+  ExternalLink,
+  FileText,
+  ChevronRight,
+  Sparkles,
+  Tag,
+  PlusCircle,
+  Clock,
+  Trash2,
+  FolderPlus
+} from 'lucide-react';
+import { getAllWorkflows, deleteWorkflow } from '../lib/db';
 import type { Workflow, RecordingStatus } from '../types';
+
+const DEFAULT_CATEGORIES = ['Umum', 'HRD & Karyawan', 'Keuangan & Finance', 'IT & Sistem', 'Operasional', 'Sales & Marketing'];
 
 export const Popup: React.FC = () => {
   const [status, setStatus] = useState<RecordingStatus>('idle');
   const [stepCount, setStepCount] = useState(0);
   const [activeTabTitle, setActiveTabTitle] = useState('');
   const [recentWorkflows, setRecentWorkflows] = useState<Workflow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Recording Mode: 'new' vs 'append'
+  const [recordMode, setRecordMode] = useState<'new' | 'append'>('new');
+  const [selectedCategory, setSelectedCategory] = useState('Umum');
+  const [customCategory, setCustomCategory] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [appendToWorkflowId, setAppendToWorkflowId] = useState('');
 
   useEffect(() => {
-    // 1. Get recording status
     chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (res) => {
       if (res) {
         setStatus(res.status || 'idle');
@@ -19,33 +39,42 @@ export const Popup: React.FC = () => {
       }
     });
 
-    // 2. Query active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         setActiveTabTitle(tabs[0].title || 'Tab saat ini');
+        setCustomTitle(tabs[0].title || 'Panduan Alur Baru');
       }
     });
 
-    // 3. Load recent workflows from IndexedDB
     loadWorkflows();
   }, []);
 
   const loadWorkflows = async () => {
     try {
       const list = await getAllWorkflows();
-      setRecentWorkflows(list.slice(0, 3));
+      setRecentWorkflows(list);
+      if (list.length > 0 && !appendToWorkflowId) {
+        setAppendToWorkflowId(list[0].id);
+      }
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const startRecording = () => {
-    chrome.runtime.sendMessage({ type: 'START_RECORDING' }, (res) => {
+    const category = customCategory.trim() || selectedCategory;
+    const payload =
+      recordMode === 'append' && appendToWorkflowId
+        ? { appendToId: appendToWorkflowId }
+        : {
+            title: customTitle.trim() || activeTabTitle || 'Panduan Alur Baru',
+            category
+          };
+
+    chrome.runtime.sendMessage({ type: 'START_RECORDING', payload }, (res) => {
       if (res && res.status) {
         setStatus(res.status);
-        window.close(); // Close popup so user can interact with page
+        window.close();
       }
     });
   };
@@ -59,13 +88,21 @@ export const Popup: React.FC = () => {
     });
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Hapus panduan ini?')) {
+      await deleteWorkflow(id);
+      loadWorkflows();
+    }
+  };
+
   const openEditor = (id?: string) => {
     chrome.runtime.sendMessage({ type: 'OPEN_EDITOR', payload: { id } });
     window.close();
   };
 
   return (
-    <div className="flex flex-col min-h-[460px] bg-slate-50 text-slate-800">
+    <div className="flex flex-col min-h-[500px] bg-slate-50 text-slate-800">
       {/* Top Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <div className="flex items-center gap-2">
@@ -85,7 +122,7 @@ export const Popup: React.FC = () => {
         </button>
       </div>
 
-      {/* Main Action Section */}
+      {/* Main Content */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         {status === 'recording' || status === 'paused' ? (
           /* Ongoing Recording Card */
@@ -113,11 +150,12 @@ export const Popup: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  chrome.runtime.sendMessage({
-                    type: status === 'recording' ? 'PAUSE_RECORDING' : 'RESUME_RECORDING'
-                  }, (res) => {
-                    setStatus(res.status);
-                  });
+                  chrome.runtime.sendMessage(
+                    {
+                      type: status === 'recording' ? 'PAUSE_RECORDING' : 'RESUME_RECORDING'
+                    },
+                    (res) => setStatus(res.status)
+                  );
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all"
               >
@@ -134,40 +172,111 @@ export const Popup: React.FC = () => {
             </div>
           </div>
         ) : (
-          /* Ready to Record Card */
+          /* Ready to Record - Mode & Category Selector */
           <div className="flex flex-col gap-3">
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
-              <div className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">Halaman Aktif:</span>
-                <p className="font-medium text-slate-800 line-clamp-1 mt-0.5">{activeTabTitle || 'Memuat tab...'}</p>
+            <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm flex flex-col gap-3">
+              {/* Mode Toggle: Baru vs Lanjutkan */}
+              <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                <button
+                  onClick={() => setRecordMode('new')}
+                  className={`flex-1 py-1.5 rounded-md transition-all ${
+                    recordMode === 'new'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  ● Rekam Baru
+                </button>
+                <button
+                  onClick={() => setRecordMode('append')}
+                  disabled={recentWorkflows.length === 0}
+                  className={`flex-1 py-1.5 rounded-md transition-all disabled:opacity-40 ${
+                    recordMode === 'append'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  ➕ Lanjut Sebelumnya
+                </button>
               </div>
+
+              {recordMode === 'new' ? (
+                <>
+                  {/* Category Selection */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                      <Tag size={12} /> Pilih / Tambah Kategori
+                    </label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg p-2 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    >
+                      {DEFAULT_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="custom">+ Kategori Kustom...</option>
+                    </select>
+
+                    {selectedCategory === 'custom' && (
+                      <input
+                        type="text"
+                        placeholder="Ketik nama kategori baru..."
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        className="text-xs border border-orange-200 rounded-lg p-2 bg-orange-50/40 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      />
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Append to Existing Workflow */
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-slate-500">
+                    Pilih Panduan yang Mau Ditambah Langkahnya:
+                  </label>
+                  <select
+                    value={appendToWorkflowId}
+                    onChange={(e) => setAppendToWorkflowId(e.target.value)}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  >
+                    {recentWorkflows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.title} ({w.steps.length} langkah)
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400">
+                    Langkah baru akan ditambahkan di urutan akhir panduan ini.
+                  </span>
+                </div>
+              )}
 
               <button
                 onClick={startRecording}
-                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-[#FF5C35] hover:bg-[#E54A24] text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#FF5C35] hover:bg-[#E54A24] text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
               >
-                <Play size={16} fill="currentColor" />
-                Mulai Rekam Alur
+                <Play size={14} fill="currentColor" />
+                {recordMode === 'new' ? 'Mulai Rekam Alur' : 'Lanjutkan Merekam'}
               </button>
-
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-                <Sparkles size={12} className="text-amber-500" />
-                <span>Otomatis menangkap klik & screenshot</span>
-              </div>
             </div>
           </div>
         )}
 
-        {/* Recent Workflows */}
-        <div className="mt-4">
+        {/* Saved Workflows & Delete capability */}
+        <div className="mt-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Panduan Terakhir</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Daftar Panduan ({recentWorkflows.length})
+            </span>
             <button onClick={() => openEditor()} className="text-[11px] text-orange-600 hover:underline font-medium">
-              Lihat Semua
+              Kelola Semua
             </button>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
             {recentWorkflows.length === 0 ? (
               <div className="bg-white rounded-lg p-3 text-center border border-dashed border-slate-200">
                 <p className="text-xs text-slate-400">Belum ada panduan tersimpan.</p>
@@ -177,40 +286,42 @@ export const Popup: React.FC = () => {
                 <div
                   key={wf.id}
                   onClick={() => openEditor(wf.id)}
-                  className="flex items-center justify-between p-2.5 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 cursor-pointer transition-colors group"
+                  className="flex items-center justify-between p-2 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0">
-                      <FileText size={14} />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0">
+                      <FileText size={12} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h4 className="text-xs font-semibold text-slate-800 truncate group-hover:text-orange-600">
                         {wf.title}
                       </h4>
                       <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                        <span>{wf.steps.length} langkah</span>
+                        <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium text-[9px]">
+                          {wf.category || 'Umum'}
+                        </span>
                         <span>•</span>
-                        <span>{new Date(wf.createdAt).toLocaleDateString('id-ID')}</span>
+                        <span>{wf.steps.length} langkah</span>
                       </p>
                     </div>
                   </div>
-                  <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 transition-colors" />
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => handleDelete(e, wf.id)}
+                      title="Hapus Panduan"
+                      className="p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-rose-50"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <ChevronRight size={14} className="text-slate-300" />
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <div className="p-3 bg-white border-t border-slate-200 text-center">
-        <p className="text-[10px] text-slate-400">
-          Ekspor langsung ke <span className="font-semibold text-slate-600">Word (.docx)</span>,{' '}
-          <span className="font-semibold text-slate-600">PowerPoint (.pptx)</span>, &{' '}
-          <span className="font-semibold text-slate-600">PDF</span>
-        </p>
-      </div>
     </div>
   );
 };
-

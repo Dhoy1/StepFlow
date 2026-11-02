@@ -92,7 +92,16 @@ export const Editor: React.FC = () => {
     handleUpdateWorkflow({ steps: newSteps });
   };
 
-  // Re-order steps
+  // Delete entire workflow
+  const handleDeleteWorkflow = async () => {
+    if (!workflow) return;
+    if (confirm(`Apakah Anda yakin ingin menghapus seluruh panduan "${workflow.title}"?`)) {
+      await db.workflows.delete(workflow.id);
+      const remaining = await getAllWorkflows();
+      setAllWorkflows(remaining);
+      setWorkflow(remaining.length > 0 ? remaining[0] : null);
+    }
+  };
   const moveStep = (index: number, direction: 'up' | 'down') => {
     if (!workflow) return;
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -242,13 +251,23 @@ export const Editor: React.FC = () => {
             S
           </div>
           <div>
-            <input
-              type="text"
-              value={workflow.title}
-              onChange={(e) => handleUpdateWorkflow({ title: e.target.value })}
-              className="text-lg font-bold text-slate-900 border-none bg-transparent hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-orange-500 rounded px-1.5 py-0.5 -ml-1.5 transition-all outline-none"
-              placeholder="Judul Panduan / Tutorial..."
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={workflow.title}
+                onChange={(e) => handleUpdateWorkflow({ title: e.target.value })}
+                className="text-lg font-bold text-slate-900 border-none bg-transparent hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-orange-500 rounded px-1.5 py-0.5 -ml-1.5 transition-all outline-none"
+                placeholder="Judul Panduan / Tutorial..."
+              />
+              <input
+                type="text"
+                value={workflow.category || 'Umum'}
+                onChange={(e) => handleUpdateWorkflow({ category: e.target.value })}
+                title="Klik untuk mengubah kategori"
+                className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:border-orange-300 focus:bg-white focus:outline-none focus:ring-1 focus:ring-orange-500 max-w-[140px]"
+                placeholder="Kategori..."
+              />
+            </div>
             <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
               <span>{workflow.steps.length} Langkah</span>
               <span>•</span>
@@ -307,6 +326,15 @@ export const Editor: React.FC = () => {
           >
             {isExporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
             Ekspor PDF
+          </button>
+
+          {/* Delete Entire Guide Button */}
+          <button
+            onClick={handleDeleteWorkflow}
+            title="Hapus Seluruh Panduan Ini"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors ml-1 border border-slate-200"
+          >
+            <Trash2 size={15} />
           </button>
         </div>
       </header>

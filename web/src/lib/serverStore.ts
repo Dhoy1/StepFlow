@@ -97,6 +97,20 @@ export async function getAllWorkflows(): Promise<Workflow[]> {
   return list.sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export async function deleteWorkflowFromCloud(id: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('workflows').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
+  // Fallback: Local JSON Storage
+  const list = readLocalWorkflows();
+  const filtered = list.filter((w) => w.id !== id);
+  writeLocalWorkflows(filtered);
+  return true;
+}
+
 export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success: boolean; id: string }> {
   if (isSupabaseConfigured && supabase) {
     // 1. Insert/Update Workflow

@@ -50,22 +50,33 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         activeRecordingTabId = activeTab.id;
         recordingStatus = 'recording';
 
-        currentWorkflow = {
-          id: generateId(),
-          title: message.payload?.title || activeTab.title || 'Panduan Workflow Baru',
-          description: 'Tutorial langkah demi langkah yang direkam secara otomatis.',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          targetUrl: activeTab.url || '',
-          steps: []
-        };
+        // Check if user requested to APPEND to an existing tutorial
+        if (message.payload?.appendToId) {
+          const existing = await db.workflows.get(message.payload.appendToId);
+          if (existing) {
+            currentWorkflow = existing;
+          }
+        }
+
+        if (!currentWorkflow) {
+          currentWorkflow = {
+            id: generateId(),
+            title: message.payload?.title || activeTab.title || 'Panduan Workflow Baru',
+            description: 'Tutorial langkah demi langkah yang direkam secara otomatis.',
+            category: message.payload?.category || 'Umum',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            targetUrl: activeTab.url || '',
+            steps: []
+          };
+        }
 
         // Notify content script in the active tab to start listening & show dock
         await chrome.tabs.sendMessage(activeRecordingTabId, {
           type: 'RECORDING_STATUS_CHANGED',
           payload: {
             status: recordingStatus,
-            stepCount: 0,
+            stepCount: currentWorkflow.steps.length,
             workflowTitle: currentWorkflow.title
           }
         }).catch(() => {

@@ -59,6 +59,7 @@ export interface Workflow {
   id: string;
   title: string;
   description: string;
+  category?: string;
   createdAt: number;
   updatedAt: number;
   targetUrl: string;
