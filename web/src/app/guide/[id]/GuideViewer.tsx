@@ -1,0 +1,330 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import {
+  FileText,
+  Presentation,
+  FileDown,
+  Share2,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Layers,
+  ArrowLeft,
+  Loader2,
+  Sparkles
+} from 'lucide-react';
+import { exportToWord } from '@/lib/exporters/docxExporter';
+import { exportToPptx } from '@/lib/exporters/pptxExporter';
+import { exportToPdf } from '@/lib/exporters/pdfExporter';
+import type { Workflow } from '@/types';
+
+interface GuideViewerProps {
+  workflow: Workflow;
+}
+
+export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<'scroll' | 'interactive'>('scroll');
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  const handleExport = async (format: 'word' | 'pptx' | 'pdf') => {
+    try {
+      setIsExporting(format);
+      if (format === 'word') await exportToWord(workflow);
+      if (format === 'pptx') await exportToPptx(workflow);
+      if (format === 'pdf') await exportToPdf(workflow);
+    } catch (e: any) {
+      alert('Gagal mengekspor: ' + e.message);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+      {/* Top Navbar */}
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 font-medium px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">Semua Panduan</span>
+          </Link>
+          <div className="h-4 w-[1px] bg-slate-200" />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#FF5C35] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">
+              S
+            </div>
+            <h1 className="text-sm font-bold text-slate-900 truncate">
+              {workflow.title}
+            </h1>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Mode Switcher */}
+          <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <button
+              onClick={() => setViewMode('scroll')}
+              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                viewMode === 'scroll'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Mode Gulir
+            </button>
+            <button
+              onClick={() => setViewMode('interactive')}
+              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                viewMode === 'interactive'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Mode Interaktif
+            </button>
+          </div>
+
+          {/* Copy Share Link */}
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors"
+          >
+            {isCopied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+            <span>{isCopied ? 'Tersalin!' : 'Bagikan'}</span>
+          </button>
+
+          {/* Export Group */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleExport('word')}
+              disabled={isExporting !== null}
+              title="Unduh format Word"
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isExporting === 'word' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+              <span className="hidden sm:inline">Word</span>
+            </button>
+
+            <button
+              onClick={() => handleExport('pptx')}
+              disabled={isExporting !== null}
+              title="Unduh format PowerPoint"
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isExporting === 'pptx' ? <Loader2 size={14} className="animate-spin" /> : <Presentation size={14} />}
+              <span className="hidden sm:inline">PPT</span>
+            </button>
+
+            <button
+              onClick={() => handleExport('pdf')}
+              disabled={isExporting !== null}
+              title="Unduh format PDF"
+              className="px-3 py-1.5 rounded-lg bg-[#FF5C35] hover:bg-[#E54A24] text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+            >
+              {isExporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-8">
+        {/* Document Header Card */}
+        <header className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">
+              {workflow.steps.length} Langkah
+            </span>
+            <span className="text-xs text-slate-400 font-medium">
+              Dipublikasikan: {new Date(workflow.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {workflow.title}
+          </h1>
+
+          {workflow.description && (
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+              {workflow.description}
+            </p>
+          )}
+
+          {workflow.targetUrl && (
+            <div className="pt-2 flex items-center gap-1.5 text-xs text-slate-400">
+              <span>Website target:</span>
+              <a
+                href={workflow.targetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-orange-600 hover:underline flex items-center gap-1 font-medium truncate max-w-sm"
+              >
+                {workflow.targetUrl} <ExternalLink size={11} />
+              </a>
+            </div>
+          )}
+        </header>
+
+        {/* Mode: Scrollable Timeline */}
+        {viewMode === 'scroll' ? (
+          <div className="space-y-8">
+            {workflow.steps.map((step, idx) => (
+              <article
+                key={step.id || idx}
+                id={`step-${idx + 1}`}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-slate-300"
+              >
+                {/* Step Header */}
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-full bg-[#FF5C35] text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                      {idx + 1}
+                    </span>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                      {step.title}
+                    </h2>
+                  </div>
+
+                  {step.description && (
+                    <p className="text-xs sm:text-sm text-slate-600 ml-9 leading-relaxed">
+                      {step.description}
+                    </p>
+                  )}
+
+                  {/* Callout */}
+                  {step.callout && step.callout.type !== 'none' && step.callout.text && (
+                    <div
+                      className={`ml-9 mt-1 p-3 rounded-xl border text-xs font-medium flex items-start gap-2 ${
+                        step.callout.type === 'tip'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : step.callout.type === 'warning'
+                          ? 'bg-amber-50 border-amber-200 text-amber-800'
+                          : 'bg-blue-50 border-blue-200 text-blue-800'
+                      }`}
+                    >
+                      <Sparkles size={14} className="flex-shrink-0 mt-0.5" />
+                      <span>{step.callout.text}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Screenshot Visual */}
+                <div className="bg-slate-950/5 p-4 sm:p-6 flex items-center justify-center">
+                  <img
+                    src={step.annotatedScreenshot || step.screenshot}
+                    alt={step.title}
+                    className="max-w-full rounded-xl shadow-md border border-slate-200 object-contain max-h-[550px]"
+                    loading="lazy"
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          /* Mode: Interactive Stepper Carousel */
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-[#FF5C35] text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                  {activeStepIndex + 1}
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Langkah {activeStepIndex + 1} dari {workflow.steps.length}
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {workflow.steps[activeStepIndex]?.title}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Step Navigation Arrows */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setActiveStepIndex(Math.max(0, activeStepIndex - 1))}
+                  disabled={activeStepIndex === 0}
+                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={() =>
+                    setActiveStepIndex(Math.min(workflow.steps.length - 1, activeStepIndex + 1))
+                  }
+                  disabled={activeStepIndex === workflow.steps.length - 1}
+                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Description & Callout */}
+            {workflow.steps[activeStepIndex]?.description && (
+              <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+                <p className="text-sm text-slate-700">
+                  {workflow.steps[activeStepIndex].description}
+                </p>
+              </div>
+            )}
+
+            {/* Screenshot */}
+            <div className="bg-slate-950/5 p-6 flex items-center justify-center min-h-[400px]">
+              <img
+                src={
+                  workflow.steps[activeStepIndex]?.annotatedScreenshot ||
+                  workflow.steps[activeStepIndex]?.screenshot
+                }
+                alt={workflow.steps[activeStepIndex]?.title}
+                className="max-w-full rounded-xl shadow-md border border-slate-200 object-contain max-h-[580px]"
+              />
+            </div>
+
+            {/* Bottom Stepper Progress Bar */}
+            <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-medium">
+                Kemajuan: {Math.round(((activeStepIndex + 1) / workflow.steps.length) * 100)}%
+              </span>
+              <div className="flex items-center gap-1">
+                {workflow.steps.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveStepIndex(i)}
+                    className={`h-2 rounded-full transition-all ${
+                      i === activeStepIndex ? 'w-6 bg-[#FF5C35]' : 'w-2 bg-slate-200 hover:bg-slate-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-12 py-6 border-t border-slate-200 bg-white text-center text-xs text-slate-400">
+        Dibuat secara otomatis dengan <span className="font-semibold text-slate-700">StepFlow</span> •
+        Tutorial dan Panduan Interaktif
+      </footer>
+    </div>
+  );
+};
+

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "tutorial-sample-1",
+    "createdAt": 1793629530913,
+    "title": "Panduan Orientasi & Penginputan Data Karyawan",
+    "description": "Tutorial langkah demi langkah untuk mendaftarkan akun pegawai baru di sistem.",
+    "steps": [
+      {
+        "url": "https://internal-portal.local/karyawan",
+        "actionType": "click",
+        "id": "step_1",
+        "pageTitle": "Daftar Karyawan",
+        "order": 1,
+        "description": "Buka menu navigasi dan klik tombol Tambah Karyawan di pojok kanan atas.",
+        "callout": {
+          "text": "Pastikan Anda menggunakan akun dengan role Administrator.",
+          "type": "info"
+        },
+        "screenshot": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "title": "Klik tombol 'Tambah Karyawan'"
+      }
+    ],
+    "author": "HR Development",
+    "targetUrl": "https://internal-portal.local/karyawan",
+    "updatedAt": 1793629531198
+  }
+]
