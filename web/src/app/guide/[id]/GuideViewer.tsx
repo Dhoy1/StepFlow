@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   FileText,
   Presentation,
@@ -14,11 +15,15 @@ import {
   Layers,
   ArrowLeft,
   Loader2,
-  Sparkles
+  Sparkles,
+  Edit,
+  Lock
 } from 'lucide-react';
 import { exportToWord } from '@/lib/exporters/docxExporter';
 import { exportToPptx } from '@/lib/exporters/pptxExporter';
 import { exportToPdf } from '@/lib/exporters/pdfExporter';
+import { isEditorAuthenticated } from '@/lib/auth';
+import { PinModal } from '@/components/PinModal';
 import type { Workflow } from '@/types';
 
 interface GuideViewerProps {
@@ -26,10 +31,31 @@ interface GuideViewerProps {
 }
 
 export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
+  const router = useRouter();
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'scroll' | 'interactive'>('scroll');
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [isAuth, setIsAuth] = useState(false);
+
+  useEffect(() => {
+    setIsAuth(isEditorAuthenticated());
+  }, []);
+
+  const handleEditClick = () => {
+    if (isEditorAuthenticated()) {
+      router.push(`/guide/${workflow.id}/edit`);
+    } else {
+      setShowPinModal(true);
+    }
+  };
+
+  const handlePinSuccess = () => {
+    setShowPinModal(false);
+    setIsAuth(true);
+    router.push(`/guide/${workflow.id}/edit`);
+  };
 
   const handleCopyLink = () => {
     if (typeof window !== 'undefined') {
@@ -100,6 +126,16 @@ export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
               Mode Interaktif
             </button>
           </div>
+
+          {/* Edit Guide Button (Protected by PIN) */}
+          <button
+            onClick={handleEditClick}
+            title="Edit panduan ini (Perlu PIN Tim)"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#FF5C35] transition-all shadow-xs"
+          >
+            <Edit size={14} />
+            <span>Edit</span>
+          </button>
 
           {/* Copy Share Link */}
           <button
@@ -324,6 +360,13 @@ export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
         Dibuat secara otomatis dengan <span className="font-semibold text-slate-700">StepFlow</span> •
         Tutorial dan Panduan Interaktif
       </footer>
+
+      {/* Team PIN Modal for Editor Access */}
+      <PinModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={handlePinSuccess}
+      />
     </div>
   );
 };

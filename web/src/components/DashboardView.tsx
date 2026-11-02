@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FileText,
@@ -12,8 +12,13 @@ import {
   Layers,
   ArrowRight,
   Tag,
-  Filter
+  Filter,
+  Lock,
+  Unlock,
+  Edit
 } from 'lucide-react';
+import { isEditorAuthenticated, logoutEditor } from '@/lib/auth';
+import { PinModal } from './PinModal';
 import type { Workflow } from '@/types';
 
 interface DashboardViewProps {
@@ -24,6 +29,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
   const [workflows, setWorkflows] = useState<Workflow[]>(initialWorkflows);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAuth, setIsAuth] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+
+  useEffect(() => {
+    setIsAuth(isEditorAuthenticated());
+  }, []);
 
   // Extract all unique categories
   const categories = ['Semua', ...Array.from(new Set(workflows.map((w) => w.category || 'Umum')))];
@@ -66,10 +77,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-orange-50 text-orange-700 font-semibold px-3 py-1 rounded-full border border-orange-200">
+        <div className="flex items-center gap-3">
+          <span className="text-xs bg-orange-50 text-orange-700 font-semibold px-3 py-1.5 rounded-full border border-orange-200">
             {workflows.length} Panduan Tersedia
           </span>
+
+          {/* Team PIN Access */}
+          {isAuth ? (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-200">
+                <Unlock size={13} /> Tim Editor Aktif
+              </span>
+              <button
+                onClick={() => {
+                  logoutEditor();
+                  setIsAuth(false);
+                }}
+                className="text-xs text-slate-400 hover:text-rose-500 font-semibold px-2 py-1"
+              >
+                Kunci
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowPinModal(true)}
+              className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition-colors shadow-xs"
+            >
+              <Lock size={13} /> Akses Tim
+            </button>
+          )}
         </div>
       </nav>
 
@@ -152,13 +188,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
                     <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-100 flex items-center gap-1">
                       <Tag size={10} /> {wf.category || 'Umum'}
                     </span>
-                    <button
-                      onClick={() => handleDelete(wf.id, wf.title)}
-                      title="Hapus Panduan Ini"
-                      className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {isAuth && (
+                      <button
+                        onClick={() => handleDelete(wf.id, wf.title)}
+                        title="Hapus Panduan Ini"
+                        className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
 
                   <div>
@@ -175,12 +213,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
                   <span className="text-[11px] text-slate-400 font-medium">
                     {wf.steps?.length || 0} Langkah
                   </span>
-                  <Link
-                    href={`/guide/${wf.id}`}
-                    className="flex items-center gap-1 text-xs font-bold text-[#FF5C35] hover:underline"
-                  >
-                    Buka Panduan <ArrowRight size={13} />
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {isAuth && (
+                      <Link
+                        href={`/guide/${wf.id}/edit`}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-orange-600"
+                      >
+                        <Edit size={12} /> Edit
+                      </Link>
+                    )}
+                    <Link
+                      href={`/guide/${wf.id}`}
+                      className="flex items-center gap-1 text-xs font-bold text-[#FF5C35] hover:underline"
+                    >
+                      Buka Panduan <ArrowRight size={13} />
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
@@ -192,6 +240,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
         StepFlow • Solusi Dokumentasi & Pelatihan Berbasis Web & Ekstensi Browser
       </footer>
+
+      {/* Team PIN Modal */}
+      <PinModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={() => {
+          setShowPinModal(false);
+          setIsAuth(true);
+        }}
+      />
     </div>
   );
 };
