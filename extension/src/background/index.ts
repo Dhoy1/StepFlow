@@ -193,6 +193,8 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
             pageTitle: meta.pageTitle || sender.tab?.title || '',
             targetElement: meta.targetElement,
             screenshot: screenshotDataUrl,
+            originalScreenshot: screenshotDataUrl,
+            annotatedScreenshot: screenshotDataUrl,
             callout: { type: 'none', text: '' },
             highlight: rect ? {
               x: Math.round(rect.x * dpr),

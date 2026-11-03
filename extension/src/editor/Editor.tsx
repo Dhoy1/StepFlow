@@ -87,14 +87,12 @@ export const Editor: React.FC = () => {
     setTimeout(() => setSaveStatus('saved'), 300);
   };
 
-  // Update a single step
-  const handleUpdateStep = (stepIndex: number, updated: Partial<Step>) => {
+  // Update a single step by ID
+  const handleUpdateStepById = (stepId: string, updated: Partial<Step>) => {
     if (!workflow) return;
-    const newSteps = [...workflow.steps];
-    newSteps[stepIndex] = {
-      ...newSteps[stepIndex],
-      ...updated
-    };
+    const newSteps = workflow.steps.map((st) =>
+      st.id === stepId ? { ...st, ...updated } : st
+    );
     handleUpdateWorkflow({ steps: newSteps });
   };
 
@@ -133,11 +131,12 @@ export const Editor: React.FC = () => {
       return;
     }
     if (confirm(`Hapus langkah ${index + 1}?`)) {
-      const newSteps = workflow.steps.filter((_, idx) => idx !== index);
+      const stepToDelete = workflow.steps[index];
+      const newSteps = workflow.steps.filter((st) => st.id !== stepToDelete.id);
       newSteps.forEach((s, idx) => (s.order = idx + 1));
       handleUpdateWorkflow({ steps: newSteps });
       if (selectedStepIndex >= newSteps.length) {
-        setSelectedStepIndex(newSteps.length - 1);
+        setSelectedStepIndex(Math.max(0, newSteps.length - 1));
       }
     }
   };
@@ -494,7 +493,7 @@ export const Editor: React.FC = () => {
                   <input
                     type="text"
                     value={currentStep.title}
-                    onChange={(e) => handleUpdateStep(selectedStepIndex, { title: e.target.value })}
+                    onChange={(e) => handleUpdateStepById(currentStep.id, { title: e.target.value })}
                     className="text-base font-semibold text-slate-900 border border-slate-200 rounded-xl px-3.5 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none"
                     placeholder="Contoh: Klik tombol 'Simpan'"
                   />
@@ -505,7 +504,7 @@ export const Editor: React.FC = () => {
                   <textarea
                     rows={2}
                     value={currentStep.description}
-                    onChange={(e) => handleUpdateStep(selectedStepIndex, { description: e.target.value })}
+                    onChange={(e) => handleUpdateStepById(currentStep.id, { description: e.target.value })}
                     className="text-sm text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
                     placeholder="Contoh: Pastikan semua data telah terisi sebelum menekan tombol simpan."
                   />
@@ -519,7 +518,7 @@ export const Editor: React.FC = () => {
                       <button
                         key={type}
                         onClick={() =>
-                          handleUpdateStep(selectedStepIndex, {
+                          handleUpdateStepById(currentStep.id, {
                             callout: {
                               type,
                               text: currentStep.callout?.text || ''
@@ -548,7 +547,7 @@ export const Editor: React.FC = () => {
                       type="text"
                       value={currentStep.callout.text}
                       onChange={(e) =>
-                        handleUpdateStep(selectedStepIndex, {
+                        handleUpdateStepById(currentStep.id, {
                           callout: {
                             type: currentStep.callout?.type || 'tip',
                             text: e.target.value
@@ -564,8 +563,9 @@ export const Editor: React.FC = () => {
 
               {/* Screenshot & Canvas Tool */}
               <StepCanvas
+                key={currentStep.id}
                 step={currentStep}
-                onUpdateStep={(updated) => handleUpdateStep(selectedStepIndex, updated)}
+                onUpdateStep={(updated) => handleUpdateStepById(currentStep.id, updated)}
               />
             </>
           )}

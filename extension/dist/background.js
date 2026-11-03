@@ -53,7 +53,7 @@ function Aa() {
       function q(e, t) {
         return vt.call(e, t);
       }
-      function V(e, t) {
+      function W(e, t) {
         typeof t == "function" && (t = t(ve(e))), (typeof Reflect > "u" ? Y : Reflect.ownKeys)(t).forEach(function(n) {
           G(e, n, t[n]);
         });
@@ -70,7 +70,7 @@ function Aa() {
         return {
           from: function(t) {
             return e.prototype = Object.create(t.prototype), G(e.prototype, "constructor", e), {
-              extend: V.bind(null, e.prototype)
+              extend: W.bind(null, e.prototype)
             };
           }
         };
@@ -458,7 +458,7 @@ function Aa() {
           });
         }
       };
-      V(k.prototype, {
+      W(k.prototype, {
         then: un,
         _then: function(e, t) {
           cn(this, new rr(null, null, e, t, K));
@@ -497,7 +497,7 @@ function Aa() {
       function rr(e, t, n, r, i) {
         this.onFulfilled = typeof e == "function" ? e : null, this.onRejected = typeof t == "function" ? t : null, this.resolve = n, this.reject = r, this.psd = i;
       }
-      V(k, {
+      W(k, {
         all: function() {
           var e = ye.apply(null, arguments).map(kt);
           return new k(function(t, n) {
@@ -1672,10 +1672,10 @@ function Aa() {
                       };
                       a.call(R, R.value, R) !== !1 && (R.value == null ? C.push(p[m + T]) : !s && F(c(P), c(R.value)) !== 0 ? (C.push(p[m + T]), E.push(R.value)) : (A.push(R.value), s && M.push(p[m + T])));
                     }
-                  return Promise.resolve(E.length > 0 && o.mutate({ trans: i, type: "add", values: E }).then(function(W) {
-                    for (var D in W.failures)
+                  return Promise.resolve(E.length > 0 && o.mutate({ trans: i, type: "add", values: E }).then(function(V) {
+                    for (var D in V.failures)
                       C.splice(parseInt(D), 1);
-                    h(E.length, W);
+                    h(E.length, V);
                   })).then(function() {
                     return (A.length > 0 || _ && typeof t == "object") && o.mutate({
                       trans: i,
@@ -1685,8 +1685,8 @@ function Aa() {
                       criteria: _,
                       changeSpec: typeof t != "function" && t,
                       isAdditionalChunk: m > 0
-                    }).then(function(W) {
-                      return h(A.length, W);
+                    }).then(function(V) {
+                      return h(A.length, V);
                     });
                   }).then(function() {
                     return (C.length > 0 || _ && y) && o.mutate({
@@ -1695,10 +1695,10 @@ function Aa() {
                       keys: C,
                       criteria: _,
                       isAdditionalChunk: m > 0
-                    }).then(function(W) {
-                      return Kt(r.table, C, W);
-                    }).then(function(W) {
-                      return h(C.length, W);
+                    }).then(function(V) {
+                      return Kt(r.table, C, V);
+                    }).then(function(V) {
+                      return h(C.length, V);
                     });
                   }).then(function() {
                     return p.length > m + g && b(m + l);
@@ -2319,14 +2319,14 @@ function Aa() {
                   results: [],
                   lastResult: void 0
                 });
-              var P, R = [], W = [], D = 0, Q = function(J) {
+              var P, R = [], V = [], D = 0, Q = function(J) {
                 ++D, ut(J);
               };
               if (b === "deleteRange") {
                 if (S.type === 4)
                   return x({
                     numFailures: D,
-                    failures: W,
+                    failures: V,
                     results: [],
                     lastResult: void 0
                   });
@@ -2343,10 +2343,10 @@ function Aa() {
               var le = function(J) {
                 var Le = J.target.result;
                 R.forEach(function(he, Ut) {
-                  return he.error != null && (W[Ut] = he.error);
+                  return he.error != null && (V[Ut] = he.error);
                 }), x({
                   numFailures: D,
-                  failures: W,
+                  failures: V,
                   results: b === "delete" ? m : R.map(function(he) {
                     return he.result;
                   }),
@@ -2363,7 +2363,7 @@ function Aa() {
             return new Promise(function(x, E) {
               x = z(x);
               var A = m.index, M = m.range, C = _.objectStore(w), T = A.isPrimaryKey ? C : C.index(A.name), P = g ? S ? "prevunique" : "prev" : S ? "nextunique" : "next", R = b || !("openKeyCursor" in T) ? T.openCursor(i(M), P) : T.openKeyCursor(i(M), P);
-              R.onerror = fe(E), R.onsuccess = z(function(W) {
+              R.onerror = fe(E), R.onsuccess = z(function(V) {
                 var D = R.result;
                 if (!D) {
                   x(null);
@@ -2413,7 +2413,7 @@ function Aa() {
               return new Promise(function(m, g) {
                 var S;
                 m = z(m);
-                var x = b.trans, E = b.values, A = b.limit, M = b.query, C = (S = b.direction) !== null && S !== void 0 ? S : "next", T = A === 1 / 0 ? void 0 : A, P = M.index, R = M.range, W = x.objectStore(w), D = P.isPrimaryKey ? W : W.index(P.name), Q = i(R);
+                var x = b.trans, E = b.values, A = b.limit, M = b.query, C = (S = b.direction) !== null && S !== void 0 ? S : "next", T = A === 1 / 0 ? void 0 : A, P = M.index, R = M.range, V = x.objectStore(w), D = P.isPrimaryKey ? V : V.index(P.name), Q = i(R);
                 if (A === 0)
                   return m({ result: [] });
                 if (_) {
@@ -2456,8 +2456,8 @@ function Aa() {
                   var Q = D.target;
                   (E[Q._pos] = Q.result) != null, ++M === A && m(E);
                 }, P = fe(g), R = 0; R < x; ++R) {
-                  var W = b[R];
-                  W != null && (C = S.get(b[R]), C._pos = R, C.onsuccess = T, C.onerror = P, ++A);
+                  var V = b[R];
+                  V != null && (C = S.get(b[R]), C._pos = R, C.onsuccess = T, C.onerror = P, ++A);
                 }
                 A === 0 && m(E);
               });
@@ -2913,7 +2913,7 @@ function Aa() {
           return e && "d" in e && Z(n, e), n;
         }
       };
-      V(ee.prototype, (Kn = {
+      W(ee.prototype, (Kn = {
         add: function(e) {
           return ht(this, e), this;
         },
@@ -3540,13 +3540,13 @@ function Aa() {
                 });
               return i.mutate(f).then(function(P) {
                 return E && (f.type === "add" || f.type === "put") && (m.addKeys(P.results), l && l.forEach(function(R) {
-                  for (var W = f.values.map(function(ie) {
+                  for (var V = f.values.map(function(ie) {
                     return R.extractKey(ie);
                   }), D = R.keyPath.findIndex(function(ie) {
                     return ie === o.keyPath;
                   }), Q = 0, ce = P.results.length; Q < ce; ++Q)
-                    W[Q][D] = P.results[Q];
-                  b(R.name).addKeys(W);
+                    V[Q][D] = P.results[Q];
+                  b(R.name).addKeys(V);
                 })), p.mutatedParts = Nt(p.mutatedParts || {}, _), P;
               });
             } }), v = function(f) {
@@ -3582,8 +3582,8 @@ function Aa() {
                       return i[f].apply(this, arguments).then(function(C) {
                         if (f === "query") {
                           if (c && h.values)
-                            return M.then(function(W) {
-                              var D = W.result;
+                            return M.then(function(V) {
+                              var D = V.result;
                               return g.addKeys(D), C;
                             });
                           var T = h.values ? C.result.map(s) : C.result;
@@ -3598,8 +3598,8 @@ function Aa() {
                             },
                             primaryKey: {
                               get: function() {
-                                var W = P.primaryKey;
-                                return S.addKey(W), W;
+                                var V = P.primaryKey;
+                                return S.addKey(V), V;
                               }
                             },
                             value: {
@@ -4289,7 +4289,7 @@ function Aa() {
         }, r;
       }
       var je = we;
-      V(je, O(O({}, mt), {
+      W(je, O(O({}, mt), {
         delete: function(e) {
           var t = new je(e, { addons: [] });
           return t.delete();
@@ -4356,7 +4356,7 @@ function Aa() {
         },
         derive: se,
         extend: Z,
-        props: V,
+        props: W,
         override: Un,
         Events: at,
         on: Se,
@@ -4531,22 +4531,22 @@ chrome.runtime.onMessage.addListener((B, re, ue) => ((async () => {
         workflow: j
       };
     case "START_RECORDING": {
-      const [V] = await chrome.tabs.query({ active: !0, currentWindow: !0 });
-      if (!V || !V.id)
+      const [W] = await chrome.tabs.query({ active: !0, currentWindow: !0 });
+      if (!W || !W.id)
         throw new Error("Tidak ada tab aktif yang dapat direkam.");
-      const U = V.url || "";
+      const U = W.url || "";
       if (U.startsWith("chrome://") || U.startsWith("edge://") || U.startsWith("chrome-extension://") || U.startsWith("about:") || U.startsWith("view-source:"))
         throw new Error(
           `Ekstensi tidak dapat merekam halaman internal browser (chrome:// atau edge://).
 Silakan buka tab website biasa (misal: localhost:3000, google.com, atau sistem kerja Anda).`
         );
-      if (We = V.id, ne = "recording", (O = B.payload) != null && O.appendToId) {
+      if (We = W.id, ne = "recording", (O = B.payload) != null && O.appendToId) {
         const G = await Yt.workflows.get(B.payload.appendToId);
         G && (j = G);
       }
       j || (j = {
         id: Lr(),
-        title: ((Te = B.payload) == null ? void 0 : Te.title) || V.title || "New Workflow Guide",
+        title: ((Te = B.payload) == null ? void 0 : Te.title) || W.title || "New Workflow Guide",
         description: "Step-by-step tutorial automatically captured from website workflow.",
         category: (($ = B.payload) == null ? void 0 : $.category) || "General",
         createdAt: Date.now(),
@@ -4589,7 +4589,7 @@ Silakan buka tab website biasa (misal: localhost:3000, google.com, atau sistem k
       if (ne !== "recording" || !j)
         return { error: "Not in recording mode" };
       try {
-        const V = await chrome.tabs.captureVisibleTab({ format: "png" }), U = B.payload, G = ((L = (Y = U.targetElement) == null ? void 0 : Y.viewport) == null ? void 0 : L.devicePixelRatio) || 1, se = (Z = U.targetElement) == null ? void 0 : Z.rect, Ht = {
+        const W = await chrome.tabs.captureVisibleTab({ format: "png" }), U = B.payload, G = ((L = (Y = U.targetElement) == null ? void 0 : Y.viewport) == null ? void 0 : L.devicePixelRatio) || 1, se = (Z = U.targetElement) == null ? void 0 : Z.rect, Ht = {
           id: Lr(),
           order: j.steps.length + 1,
           actionType: U.actionType || "click",
@@ -4598,7 +4598,9 @@ Silakan buka tab website biasa (misal: localhost:3000, google.com, atau sistem k
           url: U.url || ((ve = re.tab) == null ? void 0 : ve.url) || "",
           pageTitle: U.pageTitle || ((vt = re.tab) == null ? void 0 : vt.title) || "",
           targetElement: U.targetElement,
-          screenshot: V,
+          screenshot: W,
+          originalScreenshot: W,
+          annotatedScreenshot: W,
           callout: { type: "none", text: "" },
           highlight: se ? {
             x: Math.round(se.x * G),
@@ -4610,21 +4612,21 @@ Silakan buka tab website biasa (misal: localhost:3000, google.com, atau sistem k
           } : void 0
         };
         return j.steps.push(Ht), j.updatedAt = Date.now(), await Wn(j), await Xe(), await Je(), { success: !0, stepCount: j.steps.length };
-      } catch (V) {
-        return console.error("Failed to capture screenshot:", V), { error: V.message };
+      } catch (W) {
+        return console.error("Failed to capture screenshot:", W), { error: W.message };
       }
     }
     case "STOP_RECORDING": {
       if (!j) return { error: "No active recording" };
-      const V = { ...j };
-      ne = "idle", j = null, await Xe(), await Je(), await Wn(V);
-      const U = chrome.runtime.getURL(`editor.html?id=${V.id}`);
-      return await chrome.tabs.create({ url: U }), { success: !0, workflowId: V.id };
+      const W = { ...j };
+      ne = "idle", j = null, await Xe(), await Je(), await Wn(W);
+      const U = chrome.runtime.getURL(`editor.html?id=${W.id}`);
+      return await chrome.tabs.create({ url: U }), { success: !0, workflowId: W.id };
     }
     case "DISCARD_RECORDING":
       return j && await Yt.workflows.delete(j.id), j = null, ne = "idle", await Xe(), await Je(), { success: !0 };
     case "OPEN_EDITOR": {
-      const V = (q = B.payload) == null ? void 0 : q.id, U = V ? chrome.runtime.getURL(`editor.html?id=${V}`) : chrome.runtime.getURL("editor.html");
+      const W = (q = B.payload) == null ? void 0 : q.id, U = W ? chrome.runtime.getURL(`editor.html?id=${W}`) : chrome.runtime.getURL("editor.html");
       return await chrome.tabs.create({ url: U }), { success: !0 };
     }
     default:

@@ -112,13 +112,11 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
     }
   };
 
-  // Update a step
-  const handleUpdateStep = (stepIdx: number, updated: Partial<Step>) => {
-    const newSteps = [...workflow.steps];
-    newSteps[stepIdx] = {
-      ...newSteps[stepIdx],
-      ...updated
-    };
+  // Update a step by ID
+  const handleUpdateStepById = (stepId: string, updated: Partial<Step>) => {
+    const newSteps = workflow.steps.map((st) =>
+      st.id === stepId ? { ...st, ...updated } : st
+    );
     handleUpdateWorkflow({ steps: newSteps });
   };
 
@@ -144,11 +142,12 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
       return;
     }
     if (confirm(`Hapus langkah ${index + 1}?`)) {
-      const newSteps = workflow.steps.filter((_, idx) => idx !== index);
+      const stepToDelete = workflow.steps[index];
+      const newSteps = workflow.steps.filter((st) => st.id !== stepToDelete.id);
       newSteps.forEach((s, idx) => (s.order = idx + 1));
       handleUpdateWorkflow({ steps: newSteps });
       if (selectedStepIndex >= newSteps.length) {
-        setSelectedStepIndex(newSteps.length - 1);
+        setSelectedStepIndex(Math.max(0, newSteps.length - 1));
       }
     }
   };
@@ -391,8 +390,9 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
             <div className="max-w-4xl w-full">
               {currentStep ? (
                 <StepCanvas
+                  key={currentStep.id}
                   step={currentStep}
-                  onUpdateStep={(updated) => handleUpdateStep(selectedStepIndex, updated)}
+                  onUpdateStep={(updated) => handleUpdateStepById(currentStep.id, updated)}
                 />
               ) : (
                 <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
@@ -443,7 +443,7 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
                       <input
                         type="text"
                         value={currentStep.title || ''}
-                        onChange={(e) => handleUpdateStep(selectedStepIndex, { title: e.target.value })}
+                        onChange={(e) => handleUpdateStepById(currentStep.id, { title: e.target.value })}
                         placeholder="Contoh: Click on 'Submit Application' button"
                         className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
@@ -454,7 +454,7 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
                       <textarea
                         rows={2}
                         value={currentStep.description || ''}
-                        onChange={(e) => handleUpdateStep(selectedStepIndex, { description: e.target.value })}
+                        onChange={(e) => handleUpdateStepById(currentStep.id, { description: e.target.value })}
                         placeholder="Contoh: Ensure all required fields are filled before submitting the form..."
                         className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 leading-relaxed resize-none"
                       />
@@ -477,7 +477,7 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
                               type,
                               text: currentStep.callout?.text || ''
                             };
-                            handleUpdateStep(selectedStepIndex, { callout: newCallout });
+                            handleUpdateStepById(currentStep.id, { callout: newCallout });
                           }}
                           className={`py-1 text-[10px] font-bold rounded-lg border capitalize transition-all ${
                             (currentStep.callout?.type || 'none') === type
@@ -499,7 +499,7 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
                             type: currentStep.callout?.type || 'tip',
                             text: e.target.value
                           };
-                          handleUpdateStep(selectedStepIndex, { callout: newCallout });
+                          handleUpdateStepById(currentStep.id, { callout: newCallout });
                         }}
                         placeholder={`Tulis catatan ${currentStep.callout.type}...`}
                         className="p-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 mt-1 resize-none"

@@ -52,26 +52,46 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
 
   const [imgLoaded, setImgLoaded] = useState(false);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
+  const stepIdRef = useRef(step.id);
+  stepIdRef.current = step.id;
 
-  // Load screenshot into memory
+  // Load screenshot into memory safely
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = step.screenshot;
-    img.onload = () => {
-      imageObjRef.current = img;
-      setImgLoaded(true);
-      renderCanvas();
-    };
-    // Deselect annotations when switching steps
+    let isCurrent = true;
+    setImgLoaded(false);
+    imageObjRef.current = null;
     setIsBoxSelected(false);
     setSelectedArrowId(null);
-  }, [step.id, step.screenshot]);
+    setCropSelection(null);
+
+    // Immediately clear canvas so no leftover image from previous step shows
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+
+    const sourceImage = step.originalScreenshot || step.screenshot;
+    if (!sourceImage) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = sourceImage;
+    img.onload = () => {
+      if (!isCurrent || stepIdRef.current !== step.id) return;
+      imageObjRef.current = img;
+      setImgLoaded(true);
+      renderCanvasWithImg(img, step.id);
+    };
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [step.id, step.originalScreenshot, step.screenshot]);
 
   // Re-render when annotations, arrows, or selection change
   useEffect(() => {
-    if (imgLoaded) {
-      renderCanvas();
+    if (imgLoaded && imageObjRef.current && stepIdRef.current === step.id) {
+      renderCanvasWithImg(imageObjRef.current, step.id);
     }
   }, [step.blurRegions, step.highlight, step.arrows, selectedColor, imgLoaded, isBoxSelected, selectedArrowId]);
 
@@ -94,9 +114,14 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
   }, [step.highlight, isBoxSelected, selectedArrowId, step.arrows]);
 
   const renderCanvas = () => {
+    if (imgLoaded && imageObjRef.current && stepIdRef.current === step.id) {
+      renderCanvasWithImg(imageObjRef.current, step.id);
+    }
+  };
+
+  const renderCanvasWithImg = (img: HTMLImageElement, forStepId: string) => {
     const canvas = canvasRef.current;
-    const img = imageObjRef.current;
-    if (!canvas || !img) return;
+    if (!canvas || !img || stepIdRef.current !== forStepId) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -146,9 +171,11 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     }
 
     // 5. BAKE ANNOTATED SCREENSHOT HERE (100% CLEAN - NO RESIZE HANDLES/DOTS IN PPT/PDF/DOCX!)
-    const cleanAnnotatedUrl = canvas.toDataURL('image/png');
-    if (step.annotatedScreenshot !== cleanAnnotatedUrl) {
-      onUpdateStep({ annotatedScreenshot: cleanAnnotatedUrl });
+    if (stepIdRef.current === forStepId) {
+      const cleanAnnotatedUrl = canvas.toDataURL('image/png');
+      if (step.annotatedScreenshot !== cleanAnnotatedUrl) {
+        onUpdateStep({ annotatedScreenshot: cleanAnnotatedUrl });
+      }
     }
 
     // 6. DRAW 8 RESIZE HANDLES ONLY WHEN BOX IS SELECTED FOR EDITING
@@ -770,10 +797,11 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
 
   // Reset to Original Screenshot
   const handleResetToOriginal = () => {
-    if (step.originalScreenshot) {
-      const original = step.originalScreenshot;
+    const original = step.originalScreenshot || step.screenshot;
+    if (original) {
       onUpdateStep({
         screenshot: original,
+        originalScreenshot: original,
         annotatedScreenshot: original,
         highlight: undefined,
         blurRegions: [],
