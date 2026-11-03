@@ -180,6 +180,9 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
           const screenshotDataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
           
           const meta = message.payload;
+          const dpr = meta.targetElement?.viewport?.devicePixelRatio || 1;
+          const rect = meta.targetElement?.rect;
+
           const newStep: Step = {
             id: generateId(),
             order: currentWorkflow.steps.length + 1,
@@ -191,11 +194,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
             targetElement: meta.targetElement,
             screenshot: screenshotDataUrl,
             callout: { type: 'none', text: '' },
-            highlight: meta.targetElement ? {
-              x: meta.targetElement.rect.x,
-              y: meta.targetElement.rect.y,
-              width: meta.targetElement.rect.width,
-              height: meta.targetElement.rect.height,
+            highlight: rect ? {
+              x: Math.round(rect.x * dpr),
+              y: Math.round(rect.y * dpr),
+              width: Math.round(rect.width * dpr),
+              height: Math.round(rect.height * dpr),
               color: '#FF5C35',
               style: 'border'
             } : undefined

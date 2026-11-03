@@ -65,30 +65,11 @@ function updateDock() {
   );
 }
 
-// Visual click ripple/border effect
-function showClickFeedback(rect: DOMRect) {
-  const ripple = document.createElement('div');
-  ripple.style.position = 'fixed';
-  ripple.style.left = `${rect.left}px`;
-  ripple.style.top = `${rect.top}px`;
-  ripple.style.width = `${rect.width}px`;
-  ripple.style.height = `${rect.height}px`;
-  ripple.style.border = '2px solid #FF5C35';
-  ripple.style.borderRadius = '4px';
-  ripple.style.boxShadow = '0 0 15px rgba(255, 92, 53, 0.6)';
-  ripple.style.pointerEvents = 'none';
-  ripple.style.zIndex = '2147483646';
-  ripple.style.transition = 'all 0.4s ease-out';
-  ripple.style.transform = 'scale(1)';
-  ripple.style.opacity = '1';
-
-  document.body.appendChild(ripple);
-
-  setTimeout(() => {
-    ripple.style.transform = 'scale(1.05)';
-    ripple.style.opacity = '0';
-    setTimeout(() => ripple.remove(), 400);
-  }, 250);
+// Sembunyikan dock sebelum screenshot diambil agar gambar 100% bersih
+function hideDockBeforeCapture() {
+  if (dockHost) {
+    dockHost.style.visibility = 'hidden';
+  }
 }
 
 // Extract element metadata
@@ -134,16 +115,11 @@ function setupEventListeners() {
         return;
       }
 
-      const rect = target.getBoundingClientRect();
-      showClickFeedback(rect);
-
       const targetMeta = extractElementMeta(target);
       const instruction = generateStepInstruction('click', target, targetMeta);
 
-      // Sembunyikan dock sebelum screenshot diambil agar tidak masuk ke gambar tutorial
-      if (dockHost) {
-        dockHost.style.visibility = 'hidden';
-      }
+      // Sembunyikan dock sebelum screenshot diambil agar gambar 100% bersih tanpa elemen ekstensi
+      hideDockBeforeCapture();
 
       // Safety fallback: pastikan dock selalu muncul kembali setelah maksimal 400ms
       const safetyTimer = setTimeout(() => {
@@ -152,7 +128,7 @@ function setupEventListeners() {
         }
       }, 400);
 
-      // Beri jeda 80ms agar browser melakukan repaint tanpa dock
+      // Beri jeda 80ms agar browser melakukan repaint tanpa dock & ripple
       setTimeout(() => {
         chrome.runtime.sendMessage(
           {
@@ -193,9 +169,8 @@ function setupEventListeners() {
       const targetMeta = extractElementMeta(target);
       const instruction = generateStepInstruction('change', target, targetMeta);
 
-      if (dockHost) {
-        dockHost.style.visibility = 'hidden';
-      }
+      // Sembunyikan dock sebelum screenshot diambil agar gambar 100% bersih tanpa elemen ekstensi
+      hideDockBeforeCapture();
 
       const safetyTimer = setTimeout(() => {
         if (dockHost && dockHost.style.visibility === 'hidden') {
