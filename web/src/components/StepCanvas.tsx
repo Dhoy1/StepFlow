@@ -7,17 +7,19 @@ import {
   Check,
   X,
   Trash2,
-  Move
+  Move,
+  ArrowUpRight
 } from 'lucide-react';
-import type { Step, BlurRegion, HighlightConfig } from '../types';
+import type { Step, BlurRegion, HighlightConfig, ArrowAnnotation } from '../types';
 
 interface StepCanvasProps {
   step: Step;
   onUpdateStep: (updated: Partial<Step>) => void;
 }
 
-type ToolMode = 'none' | 'highlight' | 'crop' | 'blur';
+type ToolMode = 'none' | 'highlight' | 'crop' | 'blur' | 'arrow';
 type HandleType = 'move' | 'nw' | 'ne' | 'se' | 'sw' | 'n' | 's' | 'e' | 'w';
+type DragModeType = HandleType | 'new' | 'new-arrow' | 'arrow-start' | 'arrow-end' | 'arrow-move' | null;
 
 const HIGHLIGHT_COLORS = [
   { name: 'Red', hex: '#EF4444' },
@@ -34,14 +36,17 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
   const [selectedColor, setSelectedColor] = useState('#EF4444');
   
-  // Box selection: 8 resize dots ONLY appear when user clicks the box to edit it
+  // Selection states
   const [isBoxSelected, setIsBoxSelected] = useState(false);
+  const [selectedArrowId, setSelectedArrowId] = useState<string | null>(null);
 
   // Dragging & Interaction State
-  const [dragMode, setDragMode] = useState<HandleType | 'new' | null>(null);
+  const [dragMode, setDragMode] = useState<DragModeType>(null);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [initialBox, setInitialBox] = useState<HighlightConfig | null>(null);
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [initialArrow, setInitialArrow] = useState<ArrowAnnotation | null>(null);
+  const [currentArrow, setCurrentArrow] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [cropSelection, setCropSelection] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [hoverCursor, setHoverCursor] = useState<string>('default');
 
@@ -58,30 +63,35 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       setImgLoaded(true);
       renderCanvas();
     };
-    // Deselect box when switching steps
+    // Deselect annotations when switching steps
     setIsBoxSelected(false);
+    setSelectedArrowId(null);
   }, [step.id, step.screenshot]);
 
-  // Re-render when annotations or selection change
+  // Re-render when annotations, arrows, or selection change
   useEffect(() => {
     if (imgLoaded) {
       renderCanvas();
     }
-  }, [step.blurRegions, step.highlight, selectedColor, imgLoaded, isBoxSelected]);
+  }, [step.blurRegions, step.highlight, step.arrows, selectedColor, imgLoaded, isBoxSelected, selectedArrowId]);
 
-  // Handle keyboard shortcut (Delete / Backspace to delete highlight box)
+  // Handle keyboard shortcut (Delete / Backspace to delete active highlight box or arrow)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && step.highlight && isBoxSelected) {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         const tag = (document.activeElement?.tagName || '').toLowerCase();
         if (tag !== 'input' && tag !== 'textarea') {
-          handleDeleteHighlight();
+          if (selectedArrowId) {
+            handleDeleteArrow();
+          } else if (step.highlight && isBoxSelected) {
+            handleDeleteHighlight();
+          }
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [step.highlight, isBoxSelected]);
+  }, [step.highlight, isBoxSelected, selectedArrowId, step.arrows]);
 
   const renderCanvas = () => {
     const canvas = canvasRef.current;
@@ -121,17 +131,46 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       ctx.restore();
     }
 
-    // 4. BAKE ANNOTATED SCREENSHOT HERE (100% CLEAN - NO RESIZE HANDLES/DOTS IN PPT/PDF/DOCX!)
+    // 4. Draw Arrows (Clean solid arrows pointing to target)
+    if (step.arrows && step.arrows.length > 0) {
+      for (const arrow of step.arrows) {
+        drawArrow(
+          ctx,
+          arrow.startX,
+          arrow.startY,
+          arrow.endX,
+          arrow.endY,
+          arrow.color || selectedColor
+        );
+      }
+    }
+
+    // 5. BAKE ANNOTATED SCREENSHOT HERE (100% CLEAN - NO RESIZE HANDLES/DOTS IN PPT/PDF/DOCX!)
     const cleanAnnotatedUrl = canvas.toDataURL('image/png');
     if (step.annotatedScreenshot !== cleanAnnotatedUrl) {
       onUpdateStep({ annotatedScreenshot: cleanAnnotatedUrl });
     }
 
-    // 5. DRAW 8 RESIZE HANDLES ONLY WHEN BOX IS SELECTED FOR EDITING
+    // 6. DRAW 8 RESIZE HANDLES ONLY WHEN BOX IS SELECTED FOR EDITING
     if (isBoxSelected && step.highlight && step.highlight.width > 0) {
       const h = step.highlight;
       const boxColor = h.color || selectedColor;
       drawResizeHandles(ctx, h.x, h.y, h.width, h.height, boxColor);
+    }
+
+    // 7. DRAW ARROW HANDLES ONLY WHEN ARROW IS SELECTED FOR EDITING
+    if (selectedArrowId && step.arrows) {
+      const selArrow = step.arrows.find((a) => a.id === selectedArrowId);
+      if (selArrow) {
+        drawArrowHandles(
+          ctx,
+          selArrow.startX,
+          selArrow.startY,
+          selArrow.endX,
+          selArrow.endY,
+          selArrow.color || selectedColor
+        );
+      }
     }
   };
 
@@ -189,6 +228,134 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     ctx.restore();
   }
 
+  // Draw clean, professional arrow with filled triangular arrowhead
+  function drawArrow(
+    ctx: CanvasRenderingContext2D,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    color: string
+  ) {
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const len = Math.hypot(dx, dy);
+    if (len < 6) return;
+
+    const angle = Math.atan2(dy, dx);
+    const lineWidth = Math.max(4, Math.round(ctx.canvas.width * 0.0035));
+    const headLen = Math.max(18, Math.round(ctx.canvas.width * 0.016));
+    const headAngle = Math.PI / 6; // 30 degrees
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 1. Shaft from startX, startY to near arrowhead
+    const shaftEndX = endX - headLen * 0.5 * Math.cos(angle);
+    const shaftEndY = endY - headLen * 0.5 * Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(shaftEndX, shaftEndY);
+    ctx.stroke();
+
+    // 2. Solid triangular arrowhead
+    const x1 = endX - headLen * Math.cos(angle - headAngle);
+    const y1 = endY - headLen * Math.sin(angle - headAngle);
+    const x2 = endX - headLen * Math.cos(angle + headAngle);
+    const y2 = endY - headLen * Math.sin(angle + headAngle);
+    const notchX = endX - headLen * 0.65 * Math.cos(angle);
+    const notchY = endY - headLen * 0.65 * Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(notchX, notchY);
+    ctx.lineTo(x2, y2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Draw handles for selected arrow (start and end points)
+  function drawArrowHandles(
+    ctx: CanvasRenderingContext2D,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    color: string
+  ) {
+    const radius = Math.max(6, Math.round(ctx.canvas.width * 0.006));
+    ctx.save();
+
+    // Start point handle
+    ctx.beginPath();
+    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    // End point handle (arrowhead)
+    ctx.beginPath();
+    ctx.arc(endX, endY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Calculate distance from point (px, py) to line segment (x1, y1) - (x2, y2)
+  function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+    const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    if (l2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+  }
+
+  // Hit test for arrows
+  function getArrowHitTest(
+    x: number,
+    y: number
+  ): { type: 'arrow-start' | 'arrow-end' | 'arrow-move'; arrow: ArrowAnnotation } | null {
+    if (!step.arrows || step.arrows.length === 0) return null;
+    const tol = Math.max(14, Math.round((canvasRef.current?.width || 800) * 0.012));
+
+    // First check handles of the currently selected arrow
+    if (selectedArrowId) {
+      const sel = step.arrows.find((a) => a.id === selectedArrowId);
+      if (sel) {
+        if (Math.hypot(x - sel.startX, y - sel.startY) <= tol) {
+          return { type: 'arrow-start', arrow: sel };
+        }
+        if (Math.hypot(x - sel.endX, y - sel.endY) <= tol) {
+          return { type: 'arrow-end', arrow: sel };
+        }
+      }
+    }
+
+    // Check hit on any arrow body / shaft
+    for (const arrow of step.arrows) {
+      const dist = distToSegment(x, y, arrow.startX, arrow.startY, arrow.endX, arrow.endY);
+      if (dist <= tol) {
+        return { type: 'arrow-move', arrow };
+      }
+    }
+
+    return null;
+  }
+
   function applyPixelateOrBlur(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -229,7 +396,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     }
   }
 
-  // Hit test handles or inside box
+  // Hit test handles or inside highlight box
   function getHitTestTarget(x: number, y: number): HandleType | null {
     if (!step.highlight || step.highlight.width <= 0) return null;
     const h = step.highlight;
@@ -264,7 +431,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     const x = Math.round((e.clientX - rect.left) * scale);
     const y = Math.round((e.clientY - rect.top) * scale);
 
-    // If active tool is crop or blur, start dragging a new region
+    // 1. Tool mode: crop or blur
     if (activeTool === 'crop' || activeTool === 'blur') {
       setDragMode('new');
       setStartPos({ x, y });
@@ -272,7 +439,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       return;
     }
 
-    // If active tool is highlight, start drawing a new highlight box
+    // 2. Tool mode: highlight box
     if (activeTool === 'highlight') {
       setDragMode('new');
       setStartPos({ x, y });
@@ -280,16 +447,38 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       return;
     }
 
-    // In normal mode ('none'):
+    // 3. Tool mode: arrow
+    if (activeTool === 'arrow') {
+      setDragMode('new-arrow');
+      setStartPos({ x, y });
+      setCurrentArrow({ startX: x, startY: y, endX: x, endY: y });
+      return;
+    }
+
+    // 4. In normal mode ('none'):
+    // Check if clicked an arrow first
+    const arrowHit = getArrowHitTest(x, y);
+    if (arrowHit) {
+      setSelectedArrowId(arrowHit.arrow.id);
+      setIsBoxSelected(false);
+      setDragMode(arrowHit.type);
+      setStartPos({ x, y });
+      setInitialArrow({ ...arrowHit.arrow });
+      return;
+    }
+
+    // Check if clicked the highlight box
     const hit = getHitTestTarget(x, y);
     if (hit && step.highlight) {
       setIsBoxSelected(true);
+      setSelectedArrowId(null);
       setDragMode(hit);
       setStartPos({ x, y });
       setInitialBox({ ...step.highlight });
     } else {
-      // Clicked outside: deselect the box and hide dots
+      // Clicked outside: deselect both box and arrow
       setIsBoxSelected(false);
+      setSelectedArrowId(null);
       setDragMode(null);
     }
   };
@@ -303,11 +492,23 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
 
     // Not dragging: update cursor based on hover
     if (!dragMode || !startPos) {
-      if (activeTool === 'crop' || activeTool === 'blur' || activeTool === 'highlight') {
+      if (activeTool === 'crop' || activeTool === 'blur' || activeTool === 'highlight' || activeTool === 'arrow') {
         setHoverCursor('crosshair');
         return;
       }
       
+      // Check arrow hover
+      const arrowHit = getArrowHitTest(currentX, currentY);
+      if (arrowHit) {
+        if (arrowHit.type === 'arrow-start' || arrowHit.type === 'arrow-end') {
+          setHoverCursor('crosshair');
+        } else {
+          setHoverCursor('move');
+        }
+        return;
+      }
+
+      // Check box hover
       const hit = getHitTestTarget(currentX, currentY);
       if (isBoxSelected) {
         if (hit === 'nw' || hit === 'se') setHoverCursor('nwse-resize');
@@ -326,6 +527,48 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     // Dragging: Handle Resize or Move
     const dx = currentX - startPos.x;
     const dy = currentY - startPos.y;
+
+    if (dragMode === 'new-arrow') {
+      setCurrentArrow({
+        startX: startPos.x,
+        startY: startPos.y,
+        endX: currentX,
+        endY: currentY
+      });
+      return;
+    }
+
+    if (dragMode === 'arrow-start' && initialArrow) {
+      const updatedArrows = (step.arrows || []).map((a) =>
+        a.id === initialArrow.id ? { ...a, startX: initialArrow.startX + dx, startY: initialArrow.startY + dy } : a
+      );
+      onUpdateStep({ arrows: updatedArrows });
+      return;
+    }
+
+    if (dragMode === 'arrow-end' && initialArrow) {
+      const updatedArrows = (step.arrows || []).map((a) =>
+        a.id === initialArrow.id ? { ...a, endX: initialArrow.endX + dx, endY: initialArrow.endY + dy } : a
+      );
+      onUpdateStep({ arrows: updatedArrows });
+      return;
+    }
+
+    if (dragMode === 'arrow-move' && initialArrow) {
+      const updatedArrows = (step.arrows || []).map((a) =>
+        a.id === initialArrow.id
+          ? {
+              ...a,
+              startX: initialArrow.startX + dx,
+              startY: initialArrow.startY + dy,
+              endX: initialArrow.endX + dx,
+              endY: initialArrow.endY + dy
+            }
+          : a
+      );
+      onUpdateStep({ arrows: updatedArrows });
+      return;
+    }
 
     if (dragMode === 'new') {
       const x = Math.min(startPos.x, currentX);
@@ -383,7 +626,24 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
   const handleMouseUp = () => {
     if (!dragMode) return;
 
-    if (dragMode === 'new' && currentBox && currentBox.w > 15 && currentBox.h > 15) {
+    if (dragMode === 'new-arrow' && currentArrow) {
+      const dist = Math.hypot(currentArrow.endX - currentArrow.startX, currentArrow.endY - currentArrow.startY);
+      if (dist >= 15) {
+        const newArrow: ArrowAnnotation = {
+          id: 'arrow_' + Date.now(),
+          startX: currentArrow.startX,
+          startY: currentArrow.startY,
+          endX: currentArrow.endX,
+          endY: currentArrow.endY,
+          color: selectedColor
+        };
+        onUpdateStep({ arrows: [...(step.arrows || []), newArrow] });
+        setSelectedArrowId(newArrow.id);
+        setIsBoxSelected(false);
+      }
+      setCurrentArrow(null);
+      setActiveTool('none');
+    } else if (dragMode === 'new' && currentBox && currentBox.w > 15 && currentBox.h > 15) {
       if (activeTool === 'highlight') {
         onUpdateStep({
           highlight: {
@@ -396,6 +656,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
           }
         });
         setIsBoxSelected(true);
+        setSelectedArrowId(null);
         setActiveTool('none'); // Return to normal mode after drawing
       } else if (activeTool === 'blur') {
         const newRegion: BlurRegion = {
@@ -416,6 +677,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     setCurrentBox(null);
     setStartPos(null);
     setInitialBox(null);
+    setInitialArrow(null);
   };
 
   // Delete Highlight Box
@@ -424,18 +686,61 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     setIsBoxSelected(false);
   };
 
+  // Delete Selected Arrow
+  const handleDeleteArrow = () => {
+    if (!selectedArrowId || !step.arrows) return;
+    const remaining = step.arrows.filter((a) => a.id !== selectedArrowId);
+    onUpdateStep({ arrows: remaining });
+    setSelectedArrowId(null);
+  };
+
+  // Add preset arrow pointing to the focus box or center
+  const handleAddPresetArrow = () => {
+    if (!canvasRef.current) return;
+    const cw = canvasRef.current.width;
+    const ch = canvasRef.current.height;
+
+    let startX = Math.round(cw * 0.35);
+    let startY = Math.round(ch * 0.35);
+    let endX = Math.round(cw * 0.48);
+    let endY = Math.round(ch * 0.48);
+
+    if (step.highlight) {
+      const h = step.highlight;
+      // Position arrow pointing diagonally to the top-left or center of the highlight box
+      startX = Math.max(15, Math.round(h.x - Math.max(60, cw * 0.08)));
+      startY = Math.max(15, Math.round(h.y - Math.max(60, ch * 0.08)));
+      endX = Math.round(h.x + Math.min(10, h.width * 0.2));
+      endY = Math.round(h.y + Math.min(10, h.height * 0.2));
+    }
+
+    const newArrow: ArrowAnnotation = {
+      id: 'arrow_' + Date.now(),
+      startX,
+      startY,
+      endX,
+      endY,
+      color: selectedColor
+    };
+
+    onUpdateStep({ arrows: [...(step.arrows || []), newArrow] });
+    setSelectedArrowId(newArrow.id);
+    setIsBoxSelected(false);
+    setActiveTool('none');
+  };
+
   // Apply Crop
   const applyCrop = () => {
     if (!cropSelection || !imageObjRef.current) return;
     const img = imageObjRef.current;
 
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = cropSelection.w;
-    cropCanvas.height = cropSelection.h;
-    const ctx = cropCanvas.getContext('2d');
-    if (!ctx) return;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = cropSelection.w;
+    tempCanvas.height = cropSelection.h;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
 
-    ctx.drawImage(
+    tempCtx.drawImage(
       img,
       cropSelection.x,
       cropSelection.y,
@@ -447,36 +752,42 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       cropSelection.h
     );
 
-    const croppedDataUrl = cropCanvas.toDataURL('image/png');
-    const original = step.originalScreenshot || step.screenshot;
-
+    const croppedDataUrl = tempCanvas.toDataURL('image/png');
     onUpdateStep({
-      originalScreenshot: original,
+      originalScreenshot: step.originalScreenshot || step.screenshot,
       screenshot: croppedDataUrl,
       annotatedScreenshot: croppedDataUrl,
       highlight: undefined,
-      blurRegions: []
+      blurRegions: [],
+      arrows: []
     });
 
     setCropSelection(null);
     setActiveTool('none');
     setIsBoxSelected(false);
+    setSelectedArrowId(null);
   };
 
-  // Reset to original
+  // Reset to Original Screenshot
   const handleResetToOriginal = () => {
-    if (confirm('Reset screenshot ke gambar asli tanpa crop & anotasi?')) {
-      const original = step.originalScreenshot || step.screenshot;
+    if (step.originalScreenshot) {
+      const original = step.originalScreenshot;
       onUpdateStep({
         screenshot: original,
         annotatedScreenshot: original,
         highlight: undefined,
-        blurRegions: []
+        blurRegions: [],
+        arrows: []
       });
       setCropSelection(null);
       setIsBoxSelected(false);
+      setSelectedArrowId(null);
     }
   };
+
+  // Active color to highlight in the palette
+  const activeSelectedArrow = selectedArrowId && step.arrows ? step.arrows.find((a) => a.id === selectedArrowId) : null;
+  const currentActiveColor = activeSelectedArrow ? (activeSelectedArrow.color || selectedColor) : (step.highlight?.color || selectedColor);
 
   return (
     <div className="flex flex-col gap-3">
@@ -492,6 +803,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
               } else {
                 setActiveTool('highlight');
                 setIsBoxSelected(true);
+                setSelectedArrowId(null);
               }
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -504,9 +816,44 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
             <span>Kotak Merah Fokus</span>
           </button>
 
+          {/* Arrow Tool Button */}
+          <button
+            onClick={() => {
+              if (activeTool === 'arrow') {
+                setActiveTool('none');
+              } else {
+                setActiveTool('arrow');
+                setIsBoxSelected(false);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeTool === 'arrow' || selectedArrowId
+                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-200'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <ArrowUpRight size={14} strokeWidth={2.5} />
+            <span>Panah Petunjuk</span>
+          </button>
+
+          {/* Quick Preset: Add arrow to focus box */}
+          {step.highlight && (
+            <button
+              onClick={handleAddPresetArrow}
+              title="Tambahkan panah otomatis yang menunjuk ke kotak fokus"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-semibold transition-all"
+            >
+              <ArrowUpRight size={12} /> + Panah Fokus
+            </button>
+          )}
+
           {/* Crop Tool Button */}
           <button
-            onClick={() => setActiveTool(activeTool === 'crop' ? 'none' : 'crop')}
+            onClick={() => {
+              setActiveTool(activeTool === 'crop' ? 'none' : 'crop');
+              setIsBoxSelected(false);
+              setSelectedArrowId(null);
+            }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               activeTool === 'crop'
                 ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-200'
@@ -519,7 +866,11 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
 
           {/* Blur Tool Button */}
           <button
-            onClick={() => setActiveTool(activeTool === 'blur' ? 'none' : 'blur')}
+            onClick={() => {
+              setActiveTool(activeTool === 'blur' ? 'none' : 'blur');
+              setIsBoxSelected(false);
+              setSelectedArrowId(null);
+            }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               activeTool === 'blur'
                 ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-200'
@@ -541,15 +892,31 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
             </button>
           )}
 
-          {/* Color Palette */}
-          {step.highlight && (
+          {/* Delete Selected Arrow Button */}
+          {selectedArrowId && (
+            <button
+              onClick={handleDeleteArrow}
+              title="Hapus Panah Terpilih (atau tekan tombol Delete)"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all ml-1"
+            >
+              <Trash2 size={12} /> Hapus Panah
+            </button>
+          )}
+
+          {/* Color Palette (Active for box or arrow) */}
+          {(step.highlight || selectedArrowId) && (
             <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
               {HIGHLIGHT_COLORS.map((col) => (
                 <button
                   key={col.hex}
                   onClick={() => {
                     setSelectedColor(col.hex);
-                    if (step.highlight) {
+                    if (selectedArrowId && step.arrows) {
+                      const updated = step.arrows.map((a) =>
+                        a.id === selectedArrowId ? { ...a, color: col.hex } : a
+                      );
+                      onUpdateStep({ arrows: updated });
+                    } else if (step.highlight) {
                       onUpdateStep({
                         highlight: { ...step.highlight, color: col.hex }
                       });
@@ -558,7 +925,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
                   title={col.name}
                   style={{ backgroundColor: col.hex }}
                   className={`w-5 h-5 rounded-full transition-transform ${
-                    ((step.highlight?.color) || selectedColor) === col.hex ? 'scale-125 ring-2 ring-offset-1 ring-slate-400' : 'hover:scale-110'
+                    currentActiveColor === col.hex ? 'scale-125 ring-2 ring-offset-1 ring-slate-400' : 'hover:scale-110'
                   }`}
                 />
               ))}
@@ -598,20 +965,28 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       <div className="text-[11px] text-slate-500 px-1 font-medium flex items-center justify-between">
         <span>
           {activeTool === 'highlight' && '👉 Tarik kotak baru di atas gambar untuk membuat kotak fokus merah.'}
+          {activeTool === 'arrow' && '👉 Klik dan seret (drag) mouse dari pangkal ke arah target untuk menggambar panah.'}
           {activeTool === 'crop' && '👉 Tarik kotak area foto yang ingin Anda pertahankan.'}
           {activeTool === 'blur' && '👉 Tarik kotak di atas data sensitif (password/email) untuk memburamkannya.'}
           {activeTool === 'none' &&
-            (step.highlight
-              ? isBoxSelected
-                ? '💡 Kotak aktif: Tarik titik untuk ubah ukuran, geser bagian dalam, atau tekan Delete untuk menghapus.'
-                : '💡 Klik pada kotak merah untuk mengedit ukuran/posisi atau menghapusnya.'
-              : '💡 Klik tombol "Kotak Merah Fokus" jika ingin menambahkan kotak sorotan baru.')}
+            (selectedArrowId
+              ? '💡 Panah aktif: Tarik ujung panah untuk ubah arah/panjang, geser garisnya, atau tekan Delete untuk menghapus.'
+              : isBoxSelected && step.highlight
+              ? '💡 Kotak aktif: Tarik titik untuk ubah ukuran, geser bagian dalam, atau tekan Delete untuk menghapus.'
+              : '💡 Klik "Panah Petunjuk" atau "Kotak Merah Fokus" untuk menambah penunjuk visual ke gambar.')}
         </span>
-        {step.highlight && (
-          <span className="text-rose-600 font-semibold flex items-center gap-1">
-            <Move size={11} /> Kotak Fokus Aktif
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {step.highlight && (
+            <span className="text-rose-600 font-semibold flex items-center gap-1">
+              <Move size={11} /> Kotak Fokus Aktif
+            </span>
+          )}
+          {step.arrows && step.arrows.length > 0 && (
+            <span className="text-blue-600 font-semibold flex items-center gap-1">
+              <ArrowUpRight size={11} /> {step.arrows.length} Panah
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Screenshot Canvas Viewer */}
@@ -627,6 +1002,37 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
           style={{ cursor: hoverCursor }}
           className="max-w-full max-h-[620px] object-contain rounded"
         />
+
+        {/* Live Dragging Arrow Preview Overlay */}
+        {dragMode === 'new-arrow' && currentArrow && canvasRef.current && (
+          <svg
+            className="absolute inset-0 pointer-events-none w-full h-full"
+            viewBox={`0 0 ${canvasRef.current.width} ${canvasRef.current.height}`}
+          >
+            <defs>
+              <marker
+                id="preview-arrowhead"
+                markerWidth="12"
+                markerHeight="8"
+                refX="10"
+                refY="4"
+                orient="auto"
+              >
+                <polygon points="0 0, 12 4, 0 8" fill={selectedColor} />
+              </marker>
+            </defs>
+            <line
+              x1={currentArrow.startX}
+              y1={currentArrow.startY}
+              x2={currentArrow.endX}
+              y2={currentArrow.endY}
+              stroke={selectedColor}
+              strokeWidth={Math.max(4, Math.round(canvasRef.current.width * 0.0035))}
+              strokeLinecap="round"
+              markerEnd="url(#preview-arrowhead)"
+            />
+          </svg>
+        )}
 
         {/* Live Dragging Box Overlay */}
         {dragMode === 'new' && currentBox && canvasRef.current && (

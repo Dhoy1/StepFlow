@@ -39,6 +39,15 @@ export interface StepCallout {
   text: string;
 }
 
+export interface ArrowAnnotation {
+  id: string;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  color?: string;
+}
+
 export interface Step {
   id: string;
   order: number;
@@ -53,6 +62,7 @@ export interface Step {
   annotatedScreenshot?: string; // Processed screenshot with spotlight / blur / box
   highlight?: HighlightConfig;
   blurRegions?: BlurRegion[];
+  arrows?: ArrowAnnotation[];
   callout?: StepCallout;
 }
 
