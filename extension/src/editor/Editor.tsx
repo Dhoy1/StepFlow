@@ -39,7 +39,9 @@ export const Editor: React.FC = () => {
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [apiUrl, setApiUrl] = useState<string>(() => {
-    return localStorage.getItem('stepflow_api_url') || 'http://localhost:3000/api/workflows';
+    const saved = localStorage.getItem('stepflow_api_url');
+    if (saved && !saved.includes('localhost:3000')) return saved;
+    return 'https://support.kanmoemployeeportal.com/api/workflows';
   });
   const [editorName, setEditorName] = useState<string>(() => {
     return localStorage.getItem('stepflow_editor_name') || 'Tim Perusahaan';
