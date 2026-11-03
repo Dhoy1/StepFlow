@@ -1,5 +1,5 @@
 -- ========================================================
--- StepFlow (Tango Clone) - MySQL Database Schema
+-- StepFlow  - MySQL Database Schema
 -- Compatible with Laragon, XAMPP, and MySQL 5.7+ / 8.0+
 -- Database: stepflow_db
 -- ========================================================
