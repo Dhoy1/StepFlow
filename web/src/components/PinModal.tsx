@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Lock, KeyRound, X, CheckCircle2, AlertCircle } from 'lucide-react';
-import { loginWithPin } from '@/lib/auth';
+import React, { useState, useEffect } from 'react';
+import { Lock, KeyRound, X, CheckCircle2, AlertCircle, User } from 'lucide-react';
+import { loginWithPin, getStoredEditorName } from '@/lib/auth';
 
 interface PinModalProps {
   isOpen: boolean;
@@ -12,13 +12,20 @@ interface PinModalProps {
 
 export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [pin, setPin] = useState('');
+  const [editorName, setEditorName] = useState('');
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setEditorName(getStoredEditorName() || '');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginWithPin(pin)) {
+    if (loginWithPin(pin, editorName)) {
       setError(false);
       setPin('');
       onSuccess();
@@ -37,7 +44,7 @@ export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 leading-tight">Akses Editor Tim</h3>
-              <p className="text-[11px] text-slate-400">Masukkan PIN Tim untuk mengedit panduan.</p>
+              <p className="text-[11px] text-slate-400">Masukkan PIN & Nama untuk mengedit panduan.</p>
             </div>
           </div>
           <button
@@ -49,6 +56,20 @@ export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-semibold text-slate-600">Nama Anda (Editor):</label>
+            <div className="relative">
+              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Contoh: Budi Santoso"
+                value={editorName}
+                onChange={(e) => setEditorName(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-semibold text-slate-600">PIN Tim:</label>
             <div className="relative">
@@ -78,7 +99,7 @@ export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }
           </div>
 
           <div className="text-[11px] text-slate-400 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-            💡 <strong>Info:</strong> PIN default adalah <code className="bg-slate-200 px-1 py-0.2 rounded font-mono text-slate-800">1234</code>. Audiens umum tidak memiliki akses ke PIN ini.
+            🔒 <strong>Catatan Privasi:</strong> Nama editor dan log riwayat hanya bisa dilihat oleh anggota tim yang memiliki PIN ini, dan tersembunyi dari pembaca umum.
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-1">

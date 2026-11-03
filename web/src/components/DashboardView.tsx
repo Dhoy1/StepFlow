@@ -207,6 +207,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ initialWorkflows }
                       {wf.description || 'Tidak ada deskripsi'}
                     </p>
                   </div>
+
+                  {/* Internal Only: Last Edited Log (Hidden from public audience) */}
+                  {isAuth && (wf.lastEditedBy || wf.author) && (
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1 font-medium bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                      <span className="text-slate-400">Diedit oleh:</span>
+                      <strong className="text-slate-700">{wf.lastEditedBy || wf.author}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">

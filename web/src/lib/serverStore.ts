@@ -54,6 +54,11 @@ export async function getWorkflowById(id: string): Promise<Workflow | null> {
         [id]
       );
 
+      const [logRows]: any = await pool.execute(
+        'SELECT * FROM workflow_edit_logs WHERE workflow_id = ? ORDER BY edited_at DESC LIMIT 20',
+        [id]
+      ).catch(() => [[]]);
+
       return {
         id: wf.id,
         title: wf.title,
@@ -63,6 +68,13 @@ export async function getWorkflowById(id: string): Promise<Workflow | null> {
         updatedAt: new Date(wf.updated_at).getTime(),
         targetUrl: wf.target_url || '',
         author: wf.author || 'Tim Perusahaan',
+        lastEditedBy: wf.last_edited_by || undefined,
+        editLogs: (logRows || []).map((l: any) => ({
+          id: l.id,
+          workflowId: l.workflow_id,
+          editorName: l.editor_name,
+          editedAt: new Date(l.edited_at).getTime()
+        })),
         steps: (sRows || []).map((s: any) => ({
           id: s.id,
           order: s.order_index,
@@ -145,6 +157,7 @@ export async function getAllWorkflows(): Promise<Workflow[]> {
         updatedAt: new Date(w.updated_at).getTime(),
         targetUrl: w.target_url || '',
         author: w.author,
+        lastEditedBy: w.last_edited_by || undefined,
         steps: new Array(Number(w.step_count) || 0)
       }));
     } catch (err) {
@@ -204,15 +217,17 @@ export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success
   // 1. Prioritas Utama: MySQL
   if (isMySQLConfigured && pool) {
     try {
+      const editor = workflow.lastEditedBy || workflow.author || 'Tim Perusahaan';
       await pool.execute(
-        `INSERT INTO workflows (id, title, description, category, target_url, author, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, NOW()) 
+        `INSERT INTO workflows (id, title, description, category, target_url, author, last_edited_by, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW()) 
          ON DUPLICATE KEY UPDATE 
            title = VALUES(title), 
            description = VALUES(description), 
            category = VALUES(category), 
            target_url = VALUES(target_url), 
            author = VALUES(author), 
+           last_edited_by = VALUES(last_edited_by),
            updated_at = NOW()`,
         [
           workflow.id,
@@ -220,9 +235,18 @@ export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success
           workflow.description || '',
           workflow.category || 'General SOP',
           workflow.targetUrl || '',
-          workflow.author || 'Tim Perusahaan'
+          workflow.author || 'Tim Perusahaan',
+          editor
         ]
       );
+
+      // Record edit log in workflow_edit_logs
+      if (editor) {
+        await pool.execute(
+          `INSERT INTO workflow_edit_logs (workflow_id, editor_name, edited_at) VALUES (?, ?, NOW())`,
+          [workflow.id, editor]
+        ).catch((logErr: any) => console.warn('Could not insert edit log:', logErr));
+      }
 
       if (workflow.steps && workflow.steps.length > 0) {
         await pool.execute('DELETE FROM steps WHERE workflow_id = ?', [workflow.id]);

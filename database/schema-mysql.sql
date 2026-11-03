@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `category` VARCHAR(100) DEFAULT 'General SOP',
   `target_url` TEXT NULL,
   `author` VARCHAR(100) DEFAULT 'Tim Perusahaan',
+  `last_edited_by` VARCHAR(100) NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -41,5 +42,17 @@ CREATE TABLE IF NOT EXISTS `steps` (
   INDEX `idx_steps_workflow_id` (`workflow_id`),
   CONSTRAINT `fk_steps_workflow` 
     FOREIGN KEY (`workflow_id`) REFERENCES `workflows` (`id`) 
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Workflow Edit Logs Table (Internal audit log tracking team edits)
+CREATE TABLE IF NOT EXISTS `workflow_edit_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `workflow_id` VARCHAR(100) NOT NULL,
+  `editor_name` VARCHAR(100) NOT NULL,
+  `edited_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_wf_log` (`workflow_id`),
+  CONSTRAINT `fk_logs_workflow`
+    FOREIGN KEY (`workflow_id`) REFERENCES `workflows` (`id`)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

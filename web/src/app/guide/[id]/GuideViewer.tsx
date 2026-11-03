@@ -192,6 +192,13 @@ export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
             <span className="text-xs text-slate-400 font-medium">
               Dipublikasikan: {new Date(workflow.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
             </span>
+
+            {/* Internal Only: Editor Log Badge (Hidden from public audience) */}
+            {isAuth && workflow.lastEditedBy && (
+              <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                🔒 Log Tim: Diedit oleh {workflow.lastEditedBy}
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">

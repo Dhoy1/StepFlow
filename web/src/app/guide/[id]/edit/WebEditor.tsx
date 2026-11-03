@@ -23,10 +23,11 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { isEditorAuthenticated, logoutEditor } from '@/lib/auth';
+import { isEditorAuthenticated, logoutEditor, getStoredEditorName } from '@/lib/auth';
 import { PinModal } from '@/components/PinModal';
 import { StepCanvas } from '@/components/StepCanvas';
 import type { Workflow, Step } from '@/types';
+import { ShieldCheck, History } from 'lucide-react';
 
 interface WebEditorProps {
   initialWorkflow: Workflow;
@@ -73,7 +74,8 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
 
   // Save changes to Cloud (API)
   const handleSaveToCloud = async (wfToSave?: Workflow) => {
-    const target = wfToSave || workflow;
+    const editor = getStoredEditorName() || 'Tim Perusahaan';
+    const target = { ...(wfToSave || workflow), lastEditedBy: editor, updatedAt: Date.now() };
     try {
       setSaveStatus('saving');
       const res = await fetch(`/api/workflows/${target.id}`, {
@@ -85,6 +87,7 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
       });
       if (res.ok) {
         setSaveStatus('saved');
+        setWorkflow(target);
       } else {
         alert('Gagal menyimpan perubahan ke server.');
         setSaveStatus('unsaved');
@@ -220,6 +223,14 @@ export const WebEditor: React.FC<WebEditorProps> = ({ initialWorkflow }) => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Internal Last Edited Badge */}
+          {workflow.lastEditedBy && (
+            <div className="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+              <ShieldCheck size={13} className="text-emerald-600" />
+              <span>Diedit: <strong className="text-slate-700">{workflow.lastEditedBy}</strong></span>
+            </div>
+          )}
+
           {/* Category Dropdown */}
           <div className="hidden lg:flex items-center gap-1 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
             <Tag size={13} className="text-slate-400" />

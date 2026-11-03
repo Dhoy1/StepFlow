@@ -19,7 +19,8 @@ import {
   Loader2,
   Share2,
   ExternalLink,
-  Copy
+  Copy,
+  User
 } from 'lucide-react';
 import { db, getWorkflow, saveWorkflow, getAllWorkflows } from '../lib/db';
 import { createDemoWorkflow } from '../lib/demoData';
@@ -39,6 +40,9 @@ export const Editor: React.FC = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [apiUrl, setApiUrl] = useState<string>(() => {
     return localStorage.getItem('stepflow_api_url') || 'http://localhost:3000/api/workflows';
+  });
+  const [editorName, setEditorName] = useState<string>(() => {
+    return localStorage.getItem('stepflow_editor_name') || 'Tim Perusahaan';
   });
 
   useEffect(() => {
@@ -164,10 +168,15 @@ export const Editor: React.FC = () => {
 
     try {
       setIsPublishing(true);
+      const payload = {
+        ...workflow,
+        lastEditedBy: editorName || workflow.author || 'Tim Perusahaan',
+        author: workflow.author || editorName || 'Tim Perusahaan'
+      };
       const res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(workflow)
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -288,6 +297,22 @@ export const Editor: React.FC = () => {
 
         {/* Export Buttons Group */}
         <div className="flex items-center gap-2.5">
+          {/* Editor Name Input */}
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+            <User size={13} className="text-slate-400" />
+            <span className="text-slate-400 text-[11px]">Editor:</span>
+            <input
+              type="text"
+              value={editorName}
+              onChange={(e) => {
+                setEditorName(e.target.value);
+                localStorage.setItem('stepflow_editor_name', e.target.value);
+              }}
+              placeholder="Nama Anda"
+              className="bg-transparent font-semibold text-slate-700 outline-none w-28 text-xs"
+            />
+          </div>
+
           {/* Cloud Share / Publish */}
           <button
             onClick={handlePublish}

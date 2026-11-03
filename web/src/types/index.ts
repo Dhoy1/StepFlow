@@ -66,6 +66,13 @@ export interface Step {
   callout?: StepCallout;
 }
 
+export interface WorkflowEditLog {
+  id?: number;
+  workflowId?: string;
+  editorName: string;
+  editedAt: number;
+}
+
 export interface Workflow {
   id: string;
   title: string;
@@ -76,6 +83,8 @@ export interface Workflow {
   targetUrl: string;
   steps: Step[];
   author?: string;
+  lastEditedBy?: string;
+  editLogs?: WorkflowEditLog[];
   companyName?: string;
   logoUrl?: string;
 }
