@@ -12,7 +12,11 @@ const dist = resolve(root, 'dist');
 async function buildAll() {
   console.log('🚀 Starting StepFlow Extension Build...');
 
-  // Ensure clean dist directory
+  // Clean dist/assets directory before building to eliminate obsolete/stale chunk files
+  const assetsDir = resolve(dist, 'assets');
+  if (fs.existsSync(assetsDir)) {
+    fs.rmSync(assetsDir, { recursive: true, force: true });
+  }
   if (!fs.existsSync(dist)) {
     fs.mkdirSync(dist, { recursive: true });
   }
