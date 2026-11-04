@@ -263,6 +263,37 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         return { success: true };
       }
 
+      case 'GET_WORKFLOW': {
+        const id = message.payload?.id;
+        if (!id) return { error: 'Missing workflow id' };
+
+        // 1. Try local IndexedDB
+        let wf = await db.workflows.get(id);
+        if (wf) return { workflow: wf };
+
+        // 2. Try fetching from Cloud API (Hostinger)
+        try {
+          const res = await fetch(`https://support.kanmoemployeeportal.com/api/workflows/${id}`);
+          if (res.ok) {
+            wf = await res.json();
+            return { workflow: wf };
+          }
+        } catch (e) {
+          console.warn('Could not fetch workflow from cloud API:', e);
+        }
+
+        // 3. Fallback to localhost:3000
+        try {
+          const localRes = await fetch(`http://localhost:3000/api/workflows/${id}`);
+          if (localRes.ok) {
+            wf = await localRes.json();
+            return { workflow: wf };
+          }
+        } catch {}
+
+        return { error: 'Workflow not found' };
+      }
+
       default:
         return { error: 'Unknown message type' };
     }

@@ -1,12 +1,22 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { FloatingDock } from './FloatingDock';
+import { GuideMeSidebar } from './GuideMeSidebar';
 import { generateStepInstruction, getElementSelector } from '../lib/heuristics';
-import type { RecordingStatus, TargetElementMeta } from '../types';
+import type { RecordingStatus, TargetElementMeta, Workflow, Step } from '../types';
 
 let dockHost: HTMLElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
 let dockReactRoot: ReactDOM.Root | null = null;
+
+// Guide Me Split Screen State
+let guideHost: HTMLElement | null = null;
+let guideShadowRoot: ShadowRoot | null = null;
+let guideReactRoot: ReactDOM.Root | null = null;
+let activeGuideWorkflow: Workflow | null = null;
+let isGuidingActive = false;
+let activeGuideStepIndex = 0;
+let isGuidePaused = false;
 
 let currentStatus: RecordingStatus = 'idle';
 let currentStepCount = 0;
@@ -230,4 +240,160 @@ chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (res) => {
     updateDock();
   }
 });
+
+// ==========================================
+// GUIDE ME (SPLIT SCREEN & LIVE WALKTHROUGH)
+// ==========================================
+
+function renderGuideSidebar() {
+  if (!activeGuideWorkflow) {
+    // Teardown sidebar cleanly
+    if (guideReactRoot) {
+      guideReactRoot.unmount();
+      guideReactRoot = null;
+    }
+    if (guideHost && guideHost.parentNode) {
+      guideHost.parentNode.removeChild(guideHost);
+      guideHost = null;
+      guideShadowRoot = null;
+    }
+    // Reset body margin to restore normal 100% full screen
+    document.body.style.marginRight = '';
+    document.body.style.transition = '';
+    return;
+  }
+
+  // Create host if not existing
+  if (!guideHost) {
+    guideHost = document.createElement('stepflow-guideme-root');
+    guideHost.style.position = 'fixed';
+    guideHost.style.zIndex = '2147483647';
+    document.body.appendChild(guideHost);
+
+    guideShadowRoot = guideHost.attachShadow({ mode: 'open' });
+    const mountPoint = document.createElement('div');
+    guideShadowRoot.appendChild(mountPoint);
+    guideReactRoot = ReactDOM.createRoot(mountPoint);
+
+    // Apply split screen to host page body smoothly
+    document.body.style.transition = 'margin-right 0.25s ease';
+    document.body.style.marginRight = '380px';
+  }
+
+  guideReactRoot.render(
+    <GuideMeSidebar
+      workflow={activeGuideWorkflow}
+      isGuiding={isGuidingActive}
+      activeStepIndex={activeGuideStepIndex}
+      isPaused={isGuidePaused}
+      onExit={handleExitGuideMe}
+      onStartGuiding={handleStartGuiding}
+      onPauseToggle={handleTogglePauseGuide}
+      onNextStep={handleNextGuideStep}
+      onPrevStep={handlePrevGuideStep}
+    />
+  );
+}
+
+function handleExitGuideMe() {
+  activeGuideWorkflow = null;
+  isGuidingActive = false;
+  activeGuideStepIndex = 0;
+  isGuidePaused = false;
+  renderGuideSidebar();
+
+  // Clean URL hash without reloading page
+  if (window.location.hash.includes('stepflow-guide=')) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+}
+
+function handleStartGuiding() {
+  isGuidingActive = true;
+  activeGuideStepIndex = 0;
+  isGuidePaused = false;
+  renderGuideSidebar();
+}
+
+function handleTogglePauseGuide() {
+  isGuidePaused = !isGuidePaused;
+  renderGuideSidebar();
+}
+
+function handleNextGuideStep() {
+  if (!activeGuideWorkflow) return;
+  const steps = activeGuideWorkflow.steps || [];
+  if (activeGuideStepIndex < steps.length - 1) {
+    activeGuideStepIndex++;
+    renderGuideSidebar();
+  } else {
+    alert('🎉 Selamat! Anda telah menyelesaikan seluruh langkah panduan ini.');
+    handleExitGuideMe();
+  }
+}
+
+function handlePrevGuideStep() {
+  if (activeGuideStepIndex > 0) {
+    activeGuideStepIndex--;
+    renderGuideSidebar();
+  }
+}
+
+// Detect and launch Guide Me session
+function checkAndInitGuideMe() {
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+
+  let guideId: string | null = null;
+  const hashMatch = hash.match(/stepflow-guide=([^&]+)/);
+  if (hashMatch) {
+    guideId = hashMatch[1];
+  } else {
+    const params = new URLSearchParams(search);
+    guideId = params.get('stepflow_guide');
+  }
+
+  if (guideId) {
+    // 1. Try localStorage if available
+    try {
+      const stored = localStorage.getItem('stepflow_active_guide');
+      if (stored) {
+        const wf = JSON.parse(stored);
+        if (wf && wf.id === guideId) {
+          activeGuideWorkflow = wf;
+          renderGuideSidebar();
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Fetch through background script
+    chrome.runtime.sendMessage(
+      { type: 'GET_WORKFLOW', payload: { id: guideId } },
+      (res) => {
+        if (res && res.workflow) {
+          activeGuideWorkflow = res.workflow;
+          renderGuideSidebar();
+        }
+      }
+    );
+  }
+}
+
+// Listen to messages from web app
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'STEPFLOW_START_GUIDE' && event.data.workflow) {
+    activeGuideWorkflow = event.data.workflow;
+    renderGuideSidebar();
+  }
+});
+
+// Check on initial page load
+checkAndInitGuideMe();
+
+// Check if hash changes dynamically
+window.addEventListener('hashchange', () => {
+  checkAndInitGuideMe();
+});
+
 
