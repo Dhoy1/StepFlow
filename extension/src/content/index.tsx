@@ -296,8 +296,27 @@ function renderGuideSidebar() {
       onPauseToggle={handleTogglePauseGuide}
       onNextStep={handleNextGuideStep}
       onPrevStep={handlePrevGuideStep}
+      onGoToStep={handleGoToStep}
+      onBackToOverview={handleBackToOverview}
     />
   );
+}
+
+function handleGoToStep(index: number) {
+  if (!activeGuideWorkflow) return;
+  const steps = activeGuideWorkflow.steps || [];
+  if (index >= 0 && index < steps.length) {
+    activeGuideStepIndex = index;
+    renderGuideSidebar();
+    syncInPageSpotlight();
+  }
+}
+
+function handleBackToOverview() {
+  clearInPageGuidance();
+  isGuidingActive = false;
+  isGuidePaused = false;
+  renderGuideSidebar();
 }
 
 function syncInPageSpotlight() {

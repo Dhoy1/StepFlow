@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  ExternalLink,
   Users,
-  Compass,
   Play,
   Pause,
   RotateCcw,
-  Sparkles,
-  X
+  ListOrdered
 } from 'lucide-react';
 import type { Workflow, Step } from '../types';
 
@@ -24,6 +21,8 @@ interface GuideMeSidebarProps {
   onPauseToggle?: () => void;
   onNextStep?: () => void;
   onPrevStep?: () => void;
+  onGoToStep?: (index: number) => void;
+  onBackToOverview?: () => void;
 }
 
 export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
@@ -35,7 +34,9 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
   isPaused = false,
   onPauseToggle,
   onNextStep,
-  onPrevStep
+  onPrevStep,
+  onGoToStep,
+  onBackToOverview
 }) => {
   const steps = workflow.steps || [];
   const currentStep = steps[activeStepIndex] || steps[0];
@@ -103,6 +104,32 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isGuiding && (
+            <button
+              onClick={() => onGoToStep?.(0)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'none',
+                border: '1px solid #E2E8F0',
+                color: '#475569',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              title="Kembali ke langkah pertama (Langkah 1)"
+            >
+              <RotateCcw size={12} />
+              <span>Langkah 1</span>
+            </button>
+          )}
+
           <span
             style={{
               fontSize: '11px',
@@ -125,10 +152,10 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '20px 20px',
+          padding: '18px 18px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px'
+          gap: '16px'
         }}
       >
         {/* Header Title & Author */}
@@ -157,7 +184,7 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
 
           <h2
             style={{
-              fontSize: '20px',
+              fontSize: '18px',
               fontWeight: 800,
               lineHeight: '1.3',
               color: '#0F172A',
@@ -321,15 +348,83 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
           </>
         ) : (
           /* 4. MODE B: Active Interactive Guiding View (Sesuai Foto 3) */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Paused Banner Notification (Clarification 3) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Interactive Step Stepper: Clickable Numbers so user can jump to ANY step directly */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#F8FAFC',
+                padding: '8px 12px',
+                borderRadius: '12px',
+                border: '1px solid #E2E8F0'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                {steps.map((st, idx) => {
+                  const isCurrent = idx === activeStepIndex;
+                  const isDone = idx < activeStepIndex;
+                  return (
+                    <button
+                      key={st.id || idx}
+                      onClick={() => onGoToStep?.(idx)}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        border: isCurrent
+                          ? '2px solid #7C3AED'
+                          : isDone
+                          ? '1px solid #10B981'
+                          : '1px solid #CBD5E1',
+                        backgroundColor: isCurrent ? '#7C3AED' : isDone ? '#ECFDF5' : '#FFFFFF',
+                        color: isCurrent ? '#FFFFFF' : isDone ? '#059669' : '#64748B',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={`Langkah ${idx + 1}: ${st.title} (Klik untuk lompat ke langkah ini)`}
+                    >
+                      {isDone ? '✓' : idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={onBackToOverview}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748B',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+                title="Lihat ringkasan tutorial"
+              >
+                <ListOrdered size={13} />
+                <span>Ringkasan</span>
+              </button>
+            </div>
+
+            {/* Paused Banner Notification */}
             {isPaused && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '12px 14px',
+                  padding: '10px 14px',
                   borderRadius: '12px',
                   backgroundColor: '#FEF3C7',
                   border: '1px solid #F59E0B',
@@ -338,7 +433,7 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Pause size={16} />
+                  <Pause size={15} />
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>
                     Panduan Dijeda
                   </span>
@@ -349,17 +444,17 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '5px',
-                    padding: '6px 12px',
+                    padding: '5px 10px',
                     backgroundColor: '#D97706',
                     color: '#FFFFFF',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     border: 'none',
                     fontSize: '11px',
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
                 >
-                  <Play size={12} />
+                  <Play size={11} />
                   <span>Lanjutkan</span>
                 </button>
               </div>
@@ -442,30 +537,63 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
                 </div>
               )}
 
-              {/* Mark as complete button */}
-              <button
-                onClick={onNextStep}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  backgroundColor: '#7C3AED',
-                  color: '#FFFFFF',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7C3AED')}
-              >
-                <CheckCircle2 size={16} />
-                <span>Mark as complete</span>
-              </button>
+              {/* Action Buttons: Prev & Mark as Complete */}
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                {activeStepIndex > 0 && (
+                  <button
+                    onClick={onPrevStep}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '10px 10px',
+                      backgroundColor: '#FFFFFF',
+                      color: '#475569',
+                      borderRadius: '10px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+                    title="Kembali ke langkah sebelumnya"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Sebelumnya</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={onNextStep}
+                  style={{
+                    flex: activeStepIndex > 0 ? 1.4 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px 14px',
+                    backgroundColor: '#7C3AED',
+                    color: '#FFFFFF',
+                    borderRadius: '10px',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6D28D9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7C3AED')}
+                >
+                  <CheckCircle2 size={14} />
+                  <span>
+                    {activeStepIndex === steps.length - 1 ? 'Selesai Panduan' : 'Mark as complete'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Next step preview if exists */}
@@ -504,7 +632,7 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
       {/* 5. Bottom Navigation Bar */}
       <div
         style={{
-          padding: '14px 20px',
+          padding: '12px 18px',
           borderTop: '1px solid #F1F5F9',
           display: 'flex',
           alignItems: 'center',
@@ -514,29 +642,75 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
       >
         {isGuiding ? (
           <>
-            <button
-              onClick={onPauseToggle}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                backgroundColor: isPaused ? '#FEF3C7' : '#F1F5F9',
-                color: isPaused ? '#B45309' : '#475569',
-                borderRadius: '8px',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              {isPaused ? <Play size={14} /> : <Pause size={14} />}
-              <span>{isPaused ? 'Resume' : 'Pause'}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={onPrevStep}
+                disabled={activeStepIndex === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '7px 11px',
+                  backgroundColor: activeStepIndex === 0 ? '#F1F5F9' : '#FFFFFF',
+                  color: activeStepIndex === 0 ? '#CBD5E1' : '#475569',
+                  borderRadius: '8px',
+                  border: '1px solid #E2E8F0',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: activeStepIndex === 0 ? 'not-allowed' : 'pointer'
+                }}
+                title="Kembali ke langkah sebelumnya"
+              >
+                <ArrowLeft size={12} />
+                <span>Prev</span>
+              </button>
 
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
-              {activeStepIndex + 1} / {steps.length}
-            </span>
+              <button
+                onClick={onPauseToggle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '7px 11px',
+                  backgroundColor: isPaused ? '#FEF3C7' : '#FFFFFF',
+                  color: isPaused ? '#B45309' : '#475569',
+                  borderRadius: '8px',
+                  border: '1px solid #E2E8F0',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {isPaused ? <Play size={12} /> : <Pause size={12} />}
+                <span>{isPaused ? 'Resume' : 'Pause'}</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
+                {activeStepIndex + 1} / {steps.length}
+              </span>
+
+              <button
+                onClick={onNextStep}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '7px 12px',
+                  backgroundColor: '#7C3AED',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <span>{activeStepIndex === steps.length - 1 ? 'Selesai' : 'Next'}</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
           </>
         ) : (
           <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', width: '100%' }}>
@@ -547,4 +721,3 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
     </div>
   );
 };
-

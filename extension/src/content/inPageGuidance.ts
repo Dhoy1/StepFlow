@@ -8,21 +8,88 @@ let repositionListenersActive = false;
 let currentHighlightedStep: Step | null = null;
 
 /**
- * Smart Element Locator: Locates target DOM element using progressive fallbacks.
- * Even if step title is edited by the team, technical selectors and coordinates guarantee match.
+ * Extract clean target keywords and label from step data.
+ * Resilient against user edits (e.g. "Push on XYZ", "Click on 'Reminder' link").
+ */
+function extractTargetLabels(step: Step): string[] {
+  const labels: string[] = [];
+  const meta = step.targetElement;
+
+  // 1. Exact innerText from capture metadata if available
+  if (meta?.innerText && meta.innerText.trim().length > 0) {
+    labels.push(meta.innerText.trim().toLowerCase());
+  }
+
+  // 2. Aria label or placeholder
+  if (meta?.ariaLabel && meta.ariaLabel.trim().length > 0) {
+    labels.push(meta.ariaLabel.trim().toLowerCase());
+  }
+  if (meta?.placeholder && meta.placeholder.trim().length > 0) {
+    labels.push(meta.placeholder.trim().toLowerCase());
+  }
+
+  // 3. Extract quoted string from title: e.g. Click on "Reminder" link -> "reminder"
+  const title = step.title || '';
+  const quoteMatch = title.match(/["']([^"']+)["']/);
+  if (quoteMatch && quoteMatch[1]?.trim()) {
+    const q = quoteMatch[1].trim().toLowerCase();
+    if (!labels.includes(q)) labels.push(q);
+  }
+
+  // 4. Strip common action verbs from title to get core noun
+  const cleanTitle = title
+    .replace(/^(click on|klik pada|klik|click|press|push on|push|tap on|tap|select|pilih|buka|open|type into|masukkan|enter)\s+/i, '')
+    .replace(/\s+(button|link|tombol|field|input|option|checkbox|menu|tab)$/i, '')
+    .trim()
+    .toLowerCase();
+
+  if (cleanTitle && cleanTitle.length > 1 && !labels.includes(cleanTitle)) {
+    labels.push(cleanTitle);
+  }
+
+  return labels;
+}
+
+/**
+ * Get target coordinate box from metadata or highlight_json fallback
+ */
+function getTargetBox(step: Step): { x: number; y: number; width: number; height: number } | null {
+  if (step.targetElement?.rect && step.targetElement.rect.width > 0) {
+    return step.targetElement.rect;
+  }
+  if (step.highlight && step.highlight.width > 0) {
+    return {
+      x: step.highlight.x,
+      y: step.highlight.y,
+      width: step.highlight.width,
+      height: step.highlight.height
+    };
+  }
+  return null;
+}
+
+function isElementVisible(el: HTMLElement): boolean {
+  if (!el) return false;
+  try {
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return false;
+    }
+  } catch {}
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+/**
+ * Smart Multi-Criteria Element Locator.
+ * Solves wrong element detection by evaluating text relevance, tag match, and coordinate proximity.
  */
 export function findElementForStep(step: Step): HTMLElement | null {
   const meta = step.targetElement;
+  const targetLabels = extractTargetLabels(step);
+  const targetBox = getTargetBox(step);
 
-  // 1. Primary: CSS Selector if present
-  if (meta?.selector) {
-    try {
-      const el = document.querySelector(meta.selector) as HTMLElement;
-      if (el && isElementVisible(el)) return el;
-    } catch {}
-  }
-
-  // 2. Secondary: Element ID
+  // 1. Direct ID match if present and unique
   if (meta?.id) {
     try {
       const el = document.getElementById(meta.id);
@@ -30,67 +97,161 @@ export function findElementForStep(step: Step): HTMLElement | null {
     } catch {}
   }
 
-  // 3. Tertiary: TagName + ClassName match
-  if (meta?.tagName && meta?.className) {
+  // Gather candidate elements
+  const candidatesSet = new Set<HTMLElement>();
+
+  // A. From meta.selector if available
+  if (meta?.selector) {
     try {
-      const firstClass = meta.className.split(' ').filter(Boolean)[0];
-      if (firstClass) {
-        const candidates = document.querySelectorAll(`${meta.tagName}.${firstClass}`);
-        for (let i = 0; i < candidates.length; i++) {
-          const el = candidates[i] as HTMLElement;
-          if (isElementVisible(el)) return el;
+      document.querySelectorAll(meta.selector).forEach((el) => {
+        if (el instanceof HTMLElement && isElementVisible(el)) {
+          candidatesSet.add(el);
         }
+      });
+    } catch {}
+  }
+
+  // B. From interactive & structural elements on the page
+  const selectorPool = 'a, button, input, select, textarea, [role="button"], [role="link"], [role="menuitem"], [role="tab"], li, span, p, h1, h2, h3, h4, h5, h6, div';
+  try {
+    document.querySelectorAll(selectorPool).forEach((el) => {
+      if (el instanceof HTMLElement && isElementVisible(el)) {
+        // Exclude our own extension UI
+        if (el.closest('stepflow-dock-root') || el.closest('stepflow-guideme-root') || el.id.startsWith('stepflow-')) {
+          return;
+        }
+        // Exclude enormous container elements
+        const r = el.getBoundingClientRect();
+        if (r.width > window.innerWidth * 0.95 && r.height > window.innerHeight * 0.95) {
+          return;
+        }
+        candidatesSet.add(el);
+      }
+    });
+  } catch {}
+
+  // C. From point coordinate if available
+  if (targetBox) {
+    try {
+      const ptEl = document.elementFromPoint(
+        targetBox.x + targetBox.width / 2,
+        targetBox.y + targetBox.height / 2
+      ) as HTMLElement | null;
+      if (ptEl && isElementVisible(ptEl)) {
+        const interactive = ptEl.closest('a, button, input, select, [role="button"], li') as HTMLElement | null;
+        if (interactive) candidatesSet.add(interactive);
+        else candidatesSet.add(ptEl);
       }
     } catch {}
   }
 
-  // 4. Quaternary: Aria Label or Placeholder
-  if (meta?.ariaLabel) {
-    try {
-      const el = document.querySelector(`[aria-label="${CSS.escape(meta.ariaLabel)}"]`) as HTMLElement;
-      if (el && isElementVisible(el)) return el;
-    } catch {}
-  }
-  if (meta?.placeholder) {
-    try {
-      const el = document.querySelector(`[placeholder="${CSS.escape(meta.placeholder)}"]`) as HTMLElement;
-      if (el && isElementVisible(el)) return el;
-    } catch {}
-  }
+  const primaryLabel = targetLabels[0] || '';
 
-  // 5. Quinary: Exact or Fuzzy innerText match
-  if (meta?.innerText && meta.innerText.length > 2) {
-    try {
-      const allButtonsAndLinks = document.querySelectorAll('button, a, input, [role="button"], span, div');
-      const targetText = meta.innerText.trim().toLowerCase();
-      for (let i = 0; i < allButtonsAndLinks.length; i++) {
-        const el = allButtonsAndLinks[i] as HTMLElement;
-        const txt = (el.innerText || '').trim().toLowerCase();
-        if (txt === targetText && isElementVisible(el)) {
-          return el;
+  // Score each candidate
+  let bestCandidate: HTMLElement | null = null;
+  let bestScore = -Infinity;
+
+  candidatesSet.forEach((el) => {
+    let score = 0;
+    const elText = (el.innerText || el.textContent || '').trim().toLowerCase();
+    const elAria = (el.getAttribute('aria-label') || el.getAttribute('title') || '').trim().toLowerCase();
+    const elPlaceholder = (el as HTMLInputElement).placeholder?.trim().toLowerCase() || '';
+
+    // --- 1. Text & Label Matching (High Weight) ---
+    if (primaryLabel) {
+      if (elText === primaryLabel || elAria === primaryLabel || elPlaceholder === primaryLabel) {
+        score += 2000; // Perfect exact match
+      } else if (elText.length > 0 && elText.includes(primaryLabel)) {
+        if (elText.length <= primaryLabel.length + 15) {
+          score += 1500;
+        } else {
+          score += 600;
         }
+      } else if (primaryLabel.includes(elText) && elText.length >= 3) {
+        score += 800;
+      } else if (elAria.includes(primaryLabel) || elPlaceholder.includes(primaryLabel)) {
+        score += 1200;
+      } else if (elText.length > 0) {
+        // Candidate text contradicts target label (e.g. "Dashboard" vs "Reminder")
+        score -= 1000;
       }
-    } catch {}
+    }
+
+    // Secondary labels
+    for (let i = 1; i < targetLabels.length; i++) {
+      const secLabel = targetLabels[i];
+      if (elText === secLabel || elAria === secLabel) score += 600;
+      else if (elText.includes(secLabel)) score += 350;
+    }
+
+    // --- 2. Interactive Element Preference ---
+    const tag = el.tagName.toLowerCase();
+    if (['a', 'button', 'input', 'select', 'textarea'].includes(tag) || el.getAttribute('role') === 'button' || el.getAttribute('role') === 'link') {
+      score += 200;
+    }
+
+    // --- 3. Tag Match with recorded metadata ---
+    if (meta?.tagName && tag === meta.tagName.toLowerCase()) {
+      score += 150;
+    }
+
+    // --- 4. Coordinate & Proximity Matching ---
+    if (targetBox) {
+      const rect = el.getBoundingClientRect();
+      const targetCenterX = targetBox.x + targetBox.width / 2;
+      const targetCenterY = targetBox.y + targetBox.height / 2;
+      const elCenterX = rect.left + rect.width / 2;
+      const elCenterY = rect.top + rect.height / 2;
+
+      const dist = Math.hypot(targetCenterX - elCenterX, targetCenterY - elCenterY);
+      if (dist < 50) score += 600;
+      else if (dist < 150) score += 350;
+      else if (dist < 300) score += 150;
+      else if (dist < 600) score += 50;
+      else score -= 100; // Too far
+
+      // Size similarity
+      const widthDiff = Math.abs(rect.width - targetBox.width);
+      const heightDiff = Math.abs(rect.height - targetBox.height);
+      if (widthDiff < 50 && heightDiff < 25) {
+        score += 150;
+      }
+    }
+
+    // Prefer clickable container rather than raw inner text node if both present
+    if (el.parentElement && candidatesSet.has(el.parentElement)) {
+      const pTag = el.parentElement.tagName.toLowerCase();
+      if (['a', 'button'].includes(pTag)) {
+        score -= 80;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCandidate = el;
+    }
+  });
+
+  // Threshold check: Must have solid positive confidence score
+  if (bestCandidate && bestScore > 100) {
+    return bestCandidate;
   }
 
-  // 6. Final Fallback: Element at coordinates (x, y)
-  if (meta?.rect) {
+  // Fallback: If no candidate scored above threshold, try elementFromPoint
+  if (targetBox) {
     try {
-      const el = document.elementFromPoint(
-        meta.rect.x + meta.rect.width / 2,
-        meta.rect.y + meta.rect.height / 2
-      ) as HTMLElement;
-      if (el && isElementVisible(el)) return el;
+      const ptEl = document.elementFromPoint(
+        targetBox.x + targetBox.width / 2,
+        targetBox.y + targetBox.height / 2
+      ) as HTMLElement | null;
+      if (ptEl && isElementVisible(ptEl)) {
+        const interactive = ptEl.closest('a, button, input, select, [role="button"]') as HTMLElement | null;
+        return interactive || ptEl;
+      }
     } catch {}
   }
 
   return null;
-}
-
-function isElementVisible(el: HTMLElement): boolean {
-  if (!el || el.offsetParent === null) return false;
-  const rect = el.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
 }
 
 /**
@@ -113,8 +274,20 @@ export function highlightTargetElement(
     // Scroll element smoothly into center view
     targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
 
-    // Update position
+    // Initial position
     updateOverlayPositions(targetEl, step);
+
+    // Keep positioned as smooth scroll finishes
+    setTimeout(() => {
+      if (activeTargetElement && currentHighlightedStep) {
+        updateOverlayPositions(activeTargetElement, currentHighlightedStep);
+      }
+    }, 150);
+    setTimeout(() => {
+      if (activeTargetElement && currentHighlightedStep) {
+        updateOverlayPositions(activeTargetElement, currentHighlightedStep);
+      }
+    }, 350);
 
     // Listen for click on element to advance automatically
     activeClickHandler = (e: MouseEvent) => {
