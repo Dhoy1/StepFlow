@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { FloatingDock } from './FloatingDock';
 import { GuideMeSidebar } from './GuideMeSidebar';
+import {
+  highlightTargetElement,
+  clearInPageGuidance,
+  destroyInPageGuidance
+} from './inPageGuidance';
 import { generateStepInstruction, getElementSelector } from '../lib/heuristics';
 import type { RecordingStatus, TargetElementMeta, Workflow, Step } from '../types';
 
@@ -295,7 +300,24 @@ function renderGuideSidebar() {
   );
 }
 
+function syncInPageSpotlight() {
+  if (!isGuidingActive || isGuidePaused || !activeGuideWorkflow) {
+    clearInPageGuidance();
+    return;
+  }
+  const steps = activeGuideWorkflow.steps || [];
+  const currentStep = steps[activeGuideStepIndex];
+  if (currentStep) {
+    highlightTargetElement(currentStep, () => {
+      handleNextGuideStep();
+    });
+  } else {
+    clearInPageGuidance();
+  }
+}
+
 function handleExitGuideMe() {
+  destroyInPageGuidance();
   activeGuideWorkflow = null;
   isGuidingActive = false;
   activeGuideStepIndex = 0;
@@ -313,11 +335,13 @@ function handleStartGuiding() {
   activeGuideStepIndex = 0;
   isGuidePaused = false;
   renderGuideSidebar();
+  syncInPageSpotlight();
 }
 
 function handleTogglePauseGuide() {
   isGuidePaused = !isGuidePaused;
   renderGuideSidebar();
+  syncInPageSpotlight();
 }
 
 function handleNextGuideStep() {
@@ -326,6 +350,7 @@ function handleNextGuideStep() {
   if (activeGuideStepIndex < steps.length - 1) {
     activeGuideStepIndex++;
     renderGuideSidebar();
+    syncInPageSpotlight();
   } else {
     alert('🎉 Selamat! Anda telah menyelesaikan seluruh langkah panduan ini.');
     handleExitGuideMe();
@@ -336,8 +361,20 @@ function handlePrevGuideStep() {
   if (activeGuideStepIndex > 0) {
     activeGuideStepIndex--;
     renderGuideSidebar();
+    syncInPageSpotlight();
   }
 }
+
+// Auto-pause when user switches tabs or window loses focus (Clarification 3)
+document.addEventListener('visibilitychange', () => {
+  if (isGuidingActive && activeGuideWorkflow) {
+    if (document.hidden) {
+      isGuidePaused = true;
+      clearInPageGuidance();
+      renderGuideSidebar();
+    }
+  }
+});
 
 // Detect and launch Guide Me session
 function checkAndInitGuideMe() {

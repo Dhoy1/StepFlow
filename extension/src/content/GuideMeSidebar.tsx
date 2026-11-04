@@ -322,6 +322,49 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
         ) : (
           /* 4. MODE B: Active Interactive Guiding View (Sesuai Foto 3) */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Paused Banner Notification (Clarification 3) */}
+            {isPaused && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#FEF3C7',
+                  border: '1px solid #F59E0B',
+                  color: '#92400E',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Pause size={16} />
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>
+                    Panduan Dijeda
+                  </span>
+                </div>
+                <button
+                  onClick={onPauseToggle}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    backgroundColor: '#D97706',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Play size={12} />
+                  <span>Lanjutkan</span>
+                </button>
+              </div>
+            )}
+
             {/* Step instruction card */}
             <div
               style={{
@@ -504,3 +547,4 @@ export const GuideMeSidebar: React.FC<GuideMeSidebarProps> = ({
     </div>
   );
 };
+
