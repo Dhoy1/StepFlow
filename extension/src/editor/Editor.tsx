@@ -54,17 +54,31 @@ export const Editor: React.FC = () => {
   }, []);
 
   const loadInitialWorkflow = async (id: string | null) => {
-    const list = await getAllWorkflows();
-    setAllWorkflows(list);
+    let list = await getAllWorkflows();
 
     if (id) {
-      const found = await getWorkflow(id);
+      let found = await getWorkflow(id);
+      if (!found) {
+        try {
+          const res = await fetch(`https://support.kanmoemployeeportal.com/api/workflows/${id}`);
+          if (res.ok) {
+            found = await res.json();
+            if (found) {
+              await saveWorkflow(found);
+              list = await getAllWorkflows();
+            }
+          }
+        } catch {}
+      }
+
       if (found) {
+        setAllWorkflows(list);
         setWorkflow(found);
         return;
       }
     }
 
+    setAllWorkflows(list);
     // Default to latest workflow if available
     if (list.length > 0) {
       setWorkflow(list[0]);

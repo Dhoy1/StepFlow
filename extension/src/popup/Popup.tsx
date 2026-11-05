@@ -58,7 +58,25 @@ export const Popup: React.FC = () => {
 
   const loadWorkflows = async () => {
     try {
-      const list = await getAllWorkflows();
+      const localList = await getAllWorkflows();
+      let list = localList;
+
+      // Ambil daftar panduan dari Cloud Portal agar teman tim bisa langsung memilih & melanjutkannya
+      try {
+        const res = await fetch('https://support.kanmoemployeeportal.com/api/workflows');
+        if (res.ok) {
+          const cloudList: Workflow[] = await res.json();
+          if (Array.isArray(cloudList) && cloudList.length > 0) {
+            const map = new Map<string, Workflow>();
+            cloudList.forEach((w) => map.set(w.id, w));
+            localList.forEach((w) => map.set(w.id, w));
+            list = Array.from(map.values()).sort(
+              (a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0)
+            );
+          }
+        }
+      } catch {}
+
       setRecentWorkflows(list);
       if (list.length > 0 && !appendToWorkflowId) {
         setAppendToWorkflowId(list[0].id);

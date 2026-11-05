@@ -149,7 +149,20 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
         // Check if user requested to APPEND to an existing tutorial
         if (message.payload?.appendToId) {
-          const existing = await db.workflows.get(message.payload.appendToId);
+          let existing = await db.workflows.get(message.payload.appendToId);
+          if (!existing) {
+            try {
+              const res = await fetch(`https://support.kanmoemployeeportal.com/api/workflows/${message.payload.appendToId}`);
+              if (res.ok) {
+                existing = await res.json();
+                if (existing) {
+                  await db.workflows.put(existing);
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to fetch workflow from cloud to append:', e);
+            }
+          }
           if (existing) {
             currentWorkflow = existing;
           }
