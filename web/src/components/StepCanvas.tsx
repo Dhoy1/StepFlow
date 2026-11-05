@@ -70,7 +70,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
       if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     }
 
-    const sourceImage = step.originalScreenshot || step.screenshot;
+    const sourceImage = step.screenshot || step.originalScreenshot;
     if (!sourceImage) return;
 
     const img = new Image();
@@ -86,7 +86,7 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     return () => {
       isCurrent = false;
     };
-  }, [step.id, step.originalScreenshot, step.screenshot]);
+  }, [step.id, step.screenshot, step.originalScreenshot]);
 
   // Re-render when annotations, arrows, or selection change
   useEffect(() => {
@@ -761,27 +761,39 @@ export const StepCanvas: React.FC<StepCanvasProps> = ({ step, onUpdateStep }) =>
     if (!cropSelection || !imageObjRef.current) return;
     const img = imageObjRef.current;
 
+    const naturalW = img.naturalWidth || img.width;
+    const naturalH = img.naturalHeight || img.height;
+
+    const cropX = Math.max(0, Math.min(naturalW, Math.round(cropSelection.x)));
+    const cropY = Math.max(0, Math.min(naturalH, Math.round(cropSelection.y)));
+    const cropW = Math.max(1, Math.min(naturalW - cropX, Math.round(cropSelection.w)));
+    const cropH = Math.max(1, Math.min(naturalH - cropY, Math.round(cropSelection.h)));
+
+    if (cropW <= 0 || cropH <= 0) return;
+
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = cropSelection.w;
-    tempCanvas.height = cropSelection.h;
+    tempCanvas.width = cropW;
+    tempCanvas.height = cropH;
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
 
     tempCtx.drawImage(
       img,
-      cropSelection.x,
-      cropSelection.y,
-      cropSelection.w,
-      cropSelection.h,
+      cropX,
+      cropY,
+      cropW,
+      cropH,
       0,
       0,
-      cropSelection.w,
-      cropSelection.h
+      cropW,
+      cropH
     );
 
     const croppedDataUrl = tempCanvas.toDataURL('image/png');
+    const originalBackup = step.originalScreenshot || step.screenshot;
+
     onUpdateStep({
-      originalScreenshot: step.originalScreenshot || step.screenshot,
+      originalScreenshot: originalBackup,
       screenshot: croppedDataUrl,
       annotatedScreenshot: croppedDataUrl,
       highlight: undefined,

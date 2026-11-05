@@ -88,6 +88,7 @@ export async function getWorkflowById(id: string): Promise<Workflow | null> {
           highlight: parseJsonSafe(s.highlight_json),
           callout: parseJsonSafe(s.callout_json),
           blurRegions: parseJsonSafe(s.blur_regions_json),
+          targetElement: parseJsonSafe(s.target_element_json),
           arrows: parseJsonSafe(s.arrows_json) || []
         }))
       };
@@ -254,8 +255,8 @@ export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success
         for (let idx = 0; idx < workflow.steps.length; idx++) {
           const st = workflow.steps[idx];
           await pool.execute(
-            `INSERT INTO steps (id, workflow_id, order_index, action_type, title, description, url, page_title, screenshot_url, highlight_json, callout_json, blur_regions_json, arrows_json) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO steps (id, workflow_id, order_index, action_type, title, description, url, page_title, screenshot_url, highlight_json, callout_json, blur_regions_json, target_element_json, arrows_json) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               st.id,
               workflow.id,
@@ -269,6 +270,7 @@ export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success
               st.highlight ? JSON.stringify(st.highlight) : null,
               st.callout ? JSON.stringify(st.callout) : null,
               st.blurRegions ? JSON.stringify(st.blurRegions) : null,
+              st.targetElement ? JSON.stringify(st.targetElement) : null,
               st.arrows ? JSON.stringify(st.arrows) : null
             ]
           );

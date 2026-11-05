@@ -4,12 +4,17 @@ import type { Workflow, Step, RecordingStatus, ExtensionMessage } from '../types
 let currentWorkflow: Workflow | null = null;
 let recordingStatus: RecordingStatus = 'idle';
 let activeRecordingTabId: number | null = null;
+let latestPreCapture: { promise: Promise<string>; timestamp: number } | null = null;
 
 // Restore state from chrome.storage if service worker was suspended
 async function ensureStateRestored() {
   if (recordingStatus === 'idle' && !currentWorkflow) {
     try {
-      const stored = await chrome.storage.local.get(['recordingStatus', 'activeWorkflowId', 'activeRecordingTabId']);
+      const stored = await chrome.storage.local.get([
+        'recordingStatus',
+        'activeWorkflowId',
+        'activeRecordingTabId'
+      ]);
       if (stored.recordingStatus && stored.recordingStatus !== 'idle' && stored.activeWorkflowId) {
         recordingStatus = stored.recordingStatus;
         activeRecordingTabId = stored.activeRecordingTabId || null;
@@ -24,14 +29,14 @@ async function ensureStateRestored() {
 // Persist state to storage
 async function persistState() {
   try {
+    const toSave: Record<string, any> = {};
     if (recordingStatus === 'idle' || !currentWorkflow) {
-      await chrome.storage.local.remove(['recordingStatus', 'activeWorkflowId', 'activeRecordingTabId']);
+      await chrome.storage.local.remove(['recordingStatus', 'activeWorkflowId', 'activeRecordingTabId', 'stepflow_guide_sessions']);
     } else {
-      await chrome.storage.local.set({
-        recordingStatus,
-        activeWorkflowId: currentWorkflow.id,
-        activeRecordingTabId
-      });
+      toSave.recordingStatus = recordingStatus;
+      toSave.activeWorkflowId = currentWorkflow.id;
+      toSave.activeRecordingTabId = activeRecordingTabId;
+      await chrome.storage.local.set(toSave);
     }
   } catch (e) {
     console.warn('Failed to persist SW state:', e);
@@ -60,6 +65,50 @@ async function broadcastStatus() {
 // Generate simple UUID
 function generateId(): string {
   return 'wf_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+// Global capture mutex & rate-limit throttling to prevent MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND
+let activeCapturePromise: Promise<string> | null = null;
+let lastCaptureCompletedTime = 0;
+
+async function safeCaptureTab(windowId?: number): Promise<string> {
+  // If a capture is currently in progress, wait for it or reuse
+  if (activeCapturePromise) {
+    try {
+      return await activeCapturePromise;
+    } catch {}
+  }
+
+  // Ensure at least 80ms spacing to prevent MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND
+  const timeSinceLast = Date.now() - lastCaptureCompletedTime;
+  if (timeSinceLast < 80) {
+    await new Promise((r) => setTimeout(r, 80 - timeSinceLast));
+  }
+
+  const doCapture = async (retries = 2): Promise<string> => {
+    try {
+      let dataUrl: string;
+      if (typeof windowId === 'number') {
+        dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+      } else {
+        dataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
+      }
+      lastCaptureCompletedTime = Date.now();
+      return dataUrl;
+    } catch (err: any) {
+      if (retries > 0 && err?.message?.includes('MAX_CAPTURE_VISIBLE_TAB')) {
+        await new Promise((r) => setTimeout(r, 200));
+        return doCapture(retries - 1);
+      }
+      throw err;
+    }
+  };
+
+  activeCapturePromise = doCapture().finally(() => {
+    activeCapturePromise = null;
+  });
+
+  return activeCapturePromise;
 }
 
 // Listen to messages from Popup or Content Script
@@ -170,14 +219,40 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         return { status: recordingStatus };
       }
 
+      case 'PRE_CAPTURE': {
+        if (recordingStatus === 'recording') {
+          const windowId = sender.tab?.windowId;
+          const capturePromise = safeCaptureTab(windowId);
+          latestPreCapture = {
+            promise: capturePromise,
+            timestamp: Date.now()
+          };
+          capturePromise.catch(() => {});
+        }
+        return { success: true };
+      }
+
       case 'CAPTURE_STEP': {
         if (recordingStatus !== 'recording' || !currentWorkflow) {
           return { error: 'Not in recording mode' };
         }
 
         try {
-          // Capture visible tab
-          const screenshotDataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
+          // 1. Try to use instant screenshot pre-captured on mousedown
+          let screenshotDataUrl: string = '';
+          const now = Date.now();
+          if (latestPreCapture && (now - latestPreCapture.timestamp) < 1500) {
+            try {
+              screenshotDataUrl = await latestPreCapture.promise;
+            } catch {}
+          }
+          latestPreCapture = null;
+
+          // 2. Fallback: Take fresh screenshot immediately
+          if (!screenshotDataUrl) {
+            const windowId = sender.tab?.windowId;
+            screenshotDataUrl = await safeCaptureTab(windowId);
+          }
           
           const meta = message.payload;
           const dpr = meta.targetElement?.viewport?.devicePixelRatio || 1;
@@ -271,7 +346,16 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         let wf = await db.workflows.get(id);
         if (wf) return { workflow: wf };
 
-        // 2. Try fetching from Cloud API (Hostinger)
+        // 2. Try fetching from Local API (localhost:3000)
+        try {
+          const localRes = await fetch(`http://localhost:3000/api/workflows/${id}`);
+          if (localRes.ok) {
+            wf = await localRes.json();
+            return { workflow: wf };
+          }
+        } catch {}
+
+        // 3. Fallback to Cloud API (Hostinger)
         try {
           const res = await fetch(`https://support.kanmoemployeeportal.com/api/workflows/${id}`);
           if (res.ok) {
@@ -282,16 +366,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
           console.warn('Could not fetch workflow from cloud API:', e);
         }
 
-        // 3. Fallback to localhost:3000
-        try {
-          const localRes = await fetch(`http://localhost:3000/api/workflows/${id}`);
-          if (localRes.ok) {
-            wf = await localRes.json();
-            return { workflow: wf };
-          }
-        } catch {}
-
         return { error: 'Workflow not found' };
+      }
+
+      case 'WORKFLOW_UPDATED': {
+        return { success: true };
       }
 
       default:

@@ -1,9 +1,15 @@
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    "./popup.html",
-    "./editor.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    join(__dirname, "popup.html"),
+    join(__dirname, "editor.html"),
+    join(__dirname, "src/**/*.{js,ts,jsx,tsx}"),
   ],
   theme: {
     extend: {

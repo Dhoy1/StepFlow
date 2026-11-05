@@ -39,8 +39,6 @@ export const Editor: React.FC = () => {
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [apiUrl, setApiUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('stepflow_api_url');
-    if (saved && !saved.includes('localhost:3000')) return saved;
     return 'https://support.kanmoemployeeportal.com/api/workflows';
   });
   const [editorName, setEditorName] = useState<string>(() => {
@@ -84,6 +82,14 @@ export const Editor: React.FC = () => {
     };
     setWorkflow(newWf);
     await saveWorkflow(newWf);
+    try {
+      if (chrome?.runtime?.id) {
+        chrome.runtime.sendMessage({
+          type: 'WORKFLOW_UPDATED',
+          payload: { workflow: newWf }
+        });
+      }
+    } catch {}
     setTimeout(() => setSaveStatus('saved'), 300);
   };
 

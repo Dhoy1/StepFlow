@@ -23,6 +23,10 @@ export interface TargetElementMeta {
   selector?: string;
   rect: BoundingBox;
   viewport: ViewportMeta;
+  inputValue?: string;
+  selectedText?: string;
+  isDropdownOption?: boolean;
+  isDropdownTrigger?: boolean;
 }
 
 export interface BlurRegion extends BoundingBox {
@@ -51,7 +55,7 @@ export interface ArrowAnnotation {
 export interface Step {
   id: string;
   order: number;
-  actionType: 'click' | 'input' | 'change' | 'navigation' | 'manual';
+  actionType: 'click' | 'input' | 'change' | 'select' | 'navigation' | 'manual';
   title: string;
   description: string;
   url: string;
@@ -100,9 +104,12 @@ export interface ExtensionMessage {
     | 'DISCARD_RECORDING'
     | 'GET_STATUS'
     | 'RECORDING_STATUS_CHANGED'
+    | 'PRE_CAPTURE'
     | 'CAPTURE_STEP'
     | 'STEP_CAPTURED'
-    | 'OPEN_EDITOR';
+    | 'OPEN_EDITOR'
+    | 'GET_WORKFLOW'
+    | 'WORKFLOW_UPDATED';
   payload?: any;
 }
 

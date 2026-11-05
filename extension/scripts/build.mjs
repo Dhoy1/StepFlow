@@ -10,6 +10,7 @@ const root = resolve(__dirname, '..');
 const dist = resolve(root, 'dist');
 
 async function buildAll() {
+  process.chdir(root);
   console.log('🚀 Starting StepFlow Extension Build...');
 
   // Clean dist/assets directory before building to eliminate obsolete/stale chunk files

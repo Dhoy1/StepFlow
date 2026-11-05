@@ -18,9 +18,7 @@ import {
   Sparkles,
   Edit,
   Lock,
-  Compass,
-  Globe,
-  ArrowUpRight
+  Globe
 } from 'lucide-react';
 import { exportToWord } from '@/lib/exporters/docxExporter';
 import { exportToPptx } from '@/lib/exporters/pptxExporter';
@@ -66,38 +64,6 @@ export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
-  };
-
-  const handleGuideMe = () => {
-    if (!workflow.targetUrl) return;
-
-    try {
-      localStorage.setItem('stepflow_active_guide', JSON.stringify(workflow));
-      localStorage.setItem('stepflow_active_guide_id', workflow.id);
-    } catch (e) {
-      console.warn('Could not store active guide in localStorage:', e);
-    }
-
-    if (typeof window !== 'undefined') {
-      window.postMessage(
-        {
-          type: 'STEPFLOW_START_GUIDE',
-          workflowId: workflow.id,
-          targetUrl: workflow.targetUrl,
-          workflow
-        },
-        '*'
-      );
-    }
-
-    let urlStr = workflow.targetUrl.trim();
-    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
-      urlStr = 'https://' + urlStr;
-    }
-
-    const separator = urlStr.includes('#') ? '&' : '#';
-    const launchUrl = `${urlStr}${separator}stepflow-guide=${workflow.id}`;
-    window.open(launchUrl, '_blank');
   };
 
   const handleExport = async (format: 'word' | 'pptx' | 'pdf') => {
@@ -248,16 +214,6 @@ export const GuideViewer: React.FC<GuideViewerProps> = ({ workflow }) => {
 
           {workflow.targetUrl && (
             <div className="pt-4 flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleGuideMe}
-                className="inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-700 hover:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
-                title="Buka website target dan ikuti panduan interaktif langsung di halaman web"
-              >
-                <Compass size={18} className="text-purple-200 group-hover:rotate-45 transition-transform" />
-                <span>Guide Me (Pandu Saya)</span>
-                <ArrowUpRight size={16} className="text-purple-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </button>
-
               <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200/80 px-3.5 py-2 rounded-xl">
                 <Globe size={13} className="text-slate-400 flex-shrink-0" />
                 <span className="text-slate-400 font-medium">Target:</span>
