@@ -68,7 +68,7 @@ export const Editor: React.FC = () => {
               list = await getAllWorkflows();
             }
           }
-        } catch {}
+        } catch { }
       }
 
       if (found) {
@@ -103,7 +103,7 @@ export const Editor: React.FC = () => {
           payload: { workflow: newWf }
         });
       }
-    } catch {}
+    } catch { }
     setTimeout(() => setSaveStatus('saved'), 300);
   };
 
@@ -187,6 +187,11 @@ export const Editor: React.FC = () => {
       return;
     }
 
+    let targetApiUrl = (apiUrl || 'https://support.kanmoemployeeportal.com/api/workflows').trim();
+    if (!targetApiUrl.includes('/api/workflows')) {
+      targetApiUrl = targetApiUrl.replace(/\/+$/, '') + '/api/workflows';
+    }
+
     try {
       setIsPublishing(true);
       const payload = {
@@ -194,14 +199,19 @@ export const Editor: React.FC = () => {
         lastEditedBy: editorName || workflow.author || 'Tim Perusahaan',
         author: workflow.author || editorName || 'Tim Perusahaan'
       };
-      const res = await fetch(apiUrl, {
+      const res = await fetch(targetApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        throw new Error(`Server merespons status ${res.status}`);
+        let errorMsg = `Server merespons status ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) errorMsg += ` - ${errData.error}`;
+        } catch {}
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -210,7 +220,7 @@ export const Editor: React.FC = () => {
         navigator.clipboard.writeText(data.shareUrl);
       }
     } catch (err: any) {
-      alert(`Gagal mempublikasikan ke cloud: ${err.message}\nPastikan server web app (Next.js) sedang berjalan di ${apiUrl}`);
+      alert(`Gagal mempublikasikan ke cloud: ${err.message}\nPastikan server web app (Next.js) sedang berjalan di ${targetApiUrl}`);
     } finally {
       setIsPublishing(false);
     }
@@ -406,25 +416,22 @@ export const Editor: React.FC = () => {
                 <div
                   key={st.id}
                   onClick={() => setSelectedStepIndex(idx)}
-                  className={`group relative p-3 rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-orange-50/60 border-orange-500 shadow-sm'
-                      : 'bg-white border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`group relative p-3 rounded-xl border transition-all cursor-pointer ${isSelected
+                    ? 'bg-orange-50/60 border-orange-500 shadow-sm'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <div className="flex items-start gap-2.5">
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
-                        isSelected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
-                      }`}
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${isSelected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}
                     >
                       {idx + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h4
-                        className={`text-xs font-semibold truncate ${
-                          isSelected ? 'text-orange-950' : 'text-slate-800'
-                        }`}
+                        className={`text-xs font-semibold truncate ${isSelected ? 'text-orange-950' : 'text-slate-800'
+                          }`}
                       >
                         {st.title}
                       </h4>
@@ -545,19 +552,18 @@ export const Editor: React.FC = () => {
                             }
                           })
                         }
-                        className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                          (currentStep.callout?.type || 'none') === type
-                            ? 'bg-orange-100 text-orange-700 font-bold'
-                            : 'text-slate-500 hover:bg-slate-100'
-                        }`}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${(currentStep.callout?.type || 'none') === type
+                          ? 'bg-orange-100 text-orange-700 font-bold'
+                          : 'text-slate-500 hover:bg-slate-100'
+                          }`}
                       >
                         {type === 'none'
                           ? 'Tidak Ada'
                           : type === 'tip'
-                          ? '💡 Tips'
-                          : type === 'warning'
-                          ? '⚠️ Peringatan'
-                          : 'ℹ️ Info'}
+                            ? '💡 Tips'
+                            : type === 'warning'
+                              ? '⚠️ Peringatan'
+                              : 'ℹ️ Info'}
                       </button>
                     ))}
                   </div>

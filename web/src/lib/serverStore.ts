@@ -214,6 +214,37 @@ export async function deleteWorkflowFromCloud(id: string): Promise<boolean> {
   return true;
 }
 
+let cachedStepColumns: Set<string> | null = null;
+
+async function getAvailableStepColumns(mysqlPool: any): Promise<Set<string>> {
+  if (cachedStepColumns) return cachedStepColumns;
+
+  // Coba tambahkan kolom yang mungkin belum ada di tabel steps Hostinger / MySQL
+  try {
+    await mysqlPool.execute('ALTER TABLE steps ADD COLUMN target_element_json LONGTEXT NULL').catch(() => {});
+  } catch {}
+  try {
+    await mysqlPool.execute('ALTER TABLE steps ADD COLUMN arrows_json LONGTEXT NULL').catch(() => {});
+  } catch {}
+
+  try {
+    const [cols]: any = await mysqlPool.execute('SHOW COLUMNS FROM steps');
+    if (Array.isArray(cols)) {
+      const names = new Set<string>(cols.map((c: any) => String(c.Field).toLowerCase()));
+      cachedStepColumns = names;
+      return names;
+    }
+  } catch (err) {
+    console.warn('Could not inspect steps table columns:', err);
+  }
+
+  return new Set([
+    'id', 'workflow_id', 'order_index', 'action_type', 'title',
+    'description', 'url', 'page_title', 'screenshot_url',
+    'highlight_json', 'callout_json', 'blur_regions_json'
+  ]);
+}
+
 export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success: boolean; id: string }> {
   // 1. Prioritas Utama: MySQL
   if (isMySQLConfigured && pool) {
@@ -251,28 +282,56 @@ export async function saveWorkflowToCloud(workflow: Workflow): Promise<{ success
 
       if (workflow.steps && workflow.steps.length > 0) {
         await pool.execute('DELETE FROM steps WHERE workflow_id = ?', [workflow.id]);
+        const availableCols = await getAvailableStepColumns(pool);
 
         for (let idx = 0; idx < workflow.steps.length; idx++) {
           const st = workflow.steps[idx];
+
+          const cols: string[] = [
+            'id',
+            'workflow_id',
+            'order_index',
+            'action_type',
+            'title',
+            'description',
+            'url',
+            'page_title',
+            'screenshot_url',
+            'highlight_json',
+            'callout_json',
+            'blur_regions_json'
+          ];
+          const placeholders: string[] = ['?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?'];
+          const values: any[] = [
+            st.id,
+            workflow.id,
+            idx + 1,
+            st.actionType || 'click',
+            st.title || `Step ${idx + 1}`,
+            st.description || '',
+            st.url || '',
+            st.pageTitle || '',
+            st.annotatedScreenshot || st.screenshot || '',
+            st.highlight ? JSON.stringify(st.highlight) : null,
+            st.callout ? JSON.stringify(st.callout) : null,
+            st.blurRegions ? JSON.stringify(st.blurRegions) : null
+          ];
+
+          if (availableCols.has('target_element_json')) {
+            cols.push('target_element_json');
+            placeholders.push('?');
+            values.push(st.targetElement ? JSON.stringify(st.targetElement) : null);
+          }
+
+          if (availableCols.has('arrows_json')) {
+            cols.push('arrows_json');
+            placeholders.push('?');
+            values.push(st.arrows ? JSON.stringify(st.arrows) : null);
+          }
+
           await pool.execute(
-            `INSERT INTO steps (id, workflow_id, order_index, action_type, title, description, url, page_title, screenshot_url, highlight_json, callout_json, blur_regions_json, target_element_json, arrows_json) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              st.id,
-              workflow.id,
-              idx + 1,
-              st.actionType || 'click',
-              st.title || `Step ${idx + 1}`,
-              st.description || '',
-              st.url || '',
-              st.pageTitle || '',
-              st.annotatedScreenshot || st.screenshot || '',
-              st.highlight ? JSON.stringify(st.highlight) : null,
-              st.callout ? JSON.stringify(st.callout) : null,
-              st.blurRegions ? JSON.stringify(st.blurRegions) : null,
-              st.targetElement ? JSON.stringify(st.targetElement) : null,
-              st.arrows ? JSON.stringify(st.arrows) : null
-            ]
+            `INSERT INTO steps (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`,
+            values
           );
         }
       }
